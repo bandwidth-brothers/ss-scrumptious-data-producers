@@ -8,6 +8,9 @@
     * [Check the connection](#check-the-connection)
     * [Verify setup](#verify-setup)
 * [Run Producer Application](#run-producer-python-application)
+    * [Test database connection](#test-database-connection)
+    * [Run producers](#run-producers)
+    * [Run tests](#run-tests)
 
 
 ## Setup Python Virtual Environment
@@ -110,8 +113,33 @@ $ docker-compose down
 
 ## Run Producer Python Application
 
+### Test database connection
+
 ```shell
-$ python app/main.py
+(.venv) $ python app/main.py
+```
+
+### Run producers
+
+Example commands to run producer programs
+
+#### User Producer
+
+```shell
+(.venv) $ python -m app.producers.users --help
+(.venv) $ python -m app.producers.users --custs 10
+(.venv) $ python -m app.producers.users --custs 10 --admins 2 --emps 5
+```
+
+### Run tests
+
+Make sure a clean database is up and running. If using `docker-compose`,
+make sure the volumes are deleted before running `docker-compose up` (see not above)
+
+If the python environment is set up with the virtual environment, pytest should be installed.
+
+```shell
+(.venv) $ pytest
 ```
 
 
