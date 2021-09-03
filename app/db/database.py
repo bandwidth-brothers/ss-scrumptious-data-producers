@@ -25,6 +25,8 @@ class Database:
                     connect_timeout=5
                 )
         except pymysql.MySQLError as e:
+            print('Could not connect to the database. '
+                  'Check environment variables and database accessibility.')
             log.error(e)
             sys.exit(1)
         finally:
