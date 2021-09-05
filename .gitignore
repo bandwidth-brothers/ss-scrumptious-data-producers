@@ -139,3 +139,5 @@ cython_debug/
 # PyCharm files
 .idea/
 *.iml
+
+tmp/

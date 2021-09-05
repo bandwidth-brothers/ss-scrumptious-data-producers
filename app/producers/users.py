@@ -25,7 +25,7 @@ others will be ignored.
 examples:
 
     python -m app.producers.users --csv <path-to-csv-file>
-    python -m app.producers.users --custs 20 --admins 2 --emps 5
+    python -m app.producers.users --custs 20 --admins 2 --emps 5 --drivers 5
     python -m app.producers.users --admins 2""")
         self.parser.add_argument('-f', '--csv', type=str, help="""a csv file with user data.
 File should be in the format (no header):
@@ -33,6 +33,7 @@ userId,userRole,username,password,email""")
         self.parser.add_argument('--custs', type=int, help='number of customers to generate')
         self.parser.add_argument('--admins', type=int, help='umber of admins to generate')
         self.parser.add_argument('--emps', type=int, help='number of employees to generate')
+        self.parser.add_argument('--drivers', type=int, help='number of drivers to generate')
         self.args = self.parser.parse_args()
 
 
@@ -45,7 +46,7 @@ class User:
         self.user_role = user_role
 
     def __str__(self):
-        return f"id: {self.user_id}, role: {self.user_role}, username: {self.username}, "\
+        return f"id: {self.user_id}, role: {self.user_role}, username: {self.username},"\
                f"password: {self.password}, email: {self.email}"
 
 
@@ -137,13 +138,14 @@ class UsersProducer:
                 self.db.conn = None
                 log.info('Database connection closed.')
 
-    def produce_random(self, num_custs=0, num_admins=0, num_emps=0):
+    def produce_random(self, num_custs=0, num_admins=0, num_emps=0, num_drivers=0):
         """
         Create random users (customers, admins, employees).
 
         :param num_custs: the number of customers to create
         :param num_admins: the number of admins to create
         :param num_emps: the number of employees to create
+        :param num_drivers: the number of drivers to create
         """
         user_gen = UserGenerator()
         users = []
@@ -153,10 +155,14 @@ class UsersProducer:
             users.append(user_gen.generate_user(role='ADMIN'))
         for _ in range(num_emps):
             users.append(user_gen.generate_user(role='EMPLOYEE'))
+        for _ in range(num_drivers):
+            users.append(user_gen.generate_user(role='DRIVER'))
 
         print('The following users will be created:', end=os.linesep * 2)
         print_limit = 10
-        for i in range(print_limit):
+        for i in range(len(users)):
+            if i >= print_limit:
+                break
             print(f"  {users[i]}")
         if len(users) > print_limit:
             remaining = len(users) - print_limit
@@ -164,7 +170,7 @@ class UsersProducer:
         print()
 
         answer = input('Would you like to insert these into the database [Y/n]? ')
-        if answer.lower() == 'n':
+        if answer.strip().lower() == 'n':
             print('No records will be inserted.')
             sys.exit(0)
         else:
@@ -203,7 +209,8 @@ if __name__ == '__main__':
             sys.exit(1)
         producer.produce_from_csv(csv_file)
     else:
-        custs = args.custs
-        admins = args.admins
-        emps = args.emps
-        producer.produce_random(num_custs=custs, num_admins=admins, num_emps=emps)
+        custs = args.custs or 0
+        admins = args.admins or 0
+        emps = args.emps or 0
+        drivers = args.drivers or 0
+        producer.produce_random(num_custs=custs, num_admins=admins, num_emps=emps, num_drivers=drivers)
