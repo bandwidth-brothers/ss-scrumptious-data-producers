@@ -95,16 +95,17 @@ class UserGenerator:
         finale = winacc + "@" + windom + "." + winext
         return finale
 
-    def generate_user(self, role) -> User:
+    @classmethod
+    def generate_user(cls, role) -> User:
         """
         Generate a random User.
 
         :param role: the role of the user
         :return: the generated User
         """
-        username = self.generate_username(min_len=8, max_len=12)
-        password = self.generate_password(password_len=12)
-        email = self.generate_email(min_len=4, max_len=12)
+        username = cls.generate_username(min_len=8, max_len=12)
+        password = cls.generate_password(password_len=12)
+        email = cls.generate_email(min_len=4, max_len=12)
         user_id = uuid.uuid4()
         user = User(user_id, role, username, password, email)
         return user
@@ -145,14 +146,13 @@ class UsersProducer:
         :param num_admins: the number of admins to create
         :param num_emps: the number of employees to create
         """
-        user_gen = UserGenerator()
         users = []
         for _ in range(num_custs):
-            users.append(user_gen.generate_user(role='CUSTOMER'))
+            users.append(UserGenerator.generate_user(role='CUSTOMER'))
         for _ in range(num_admins):
-            users.append(user_gen.generate_user(role='ADMIN'))
+            users.append(UserGenerator.generate_user(role='ADMIN'))
         for _ in range(num_emps):
-            users.append(user_gen.generate_user(role='EMPLOYEE'))
+            users.append(UserGenerator.generate_user(role='EMPLOYEE'))
 
         print('The following users will be created:', end=os.linesep * 2)
         print_limit = 10
