@@ -31,7 +31,7 @@ $
 ```shell
 C:\> python -m venv .venv
 C:\> .\.venv\Scripts\activate.bat
-(.venv) C:\> pip install -r requirements
+(.venv) C:\> pip install -r requirements.txt
 
 # To deactivate the virtual env run
 (.venv) C:\> deactivate
@@ -129,7 +129,31 @@ Example commands to run producer programs
 (.venv) $ python -m app.producers.users --help
 (.venv) $ python -m app.producers.users --custs 10
 (.venv) $ python -m app.producers.users --custs 10 --admins 2 --emps 5
+(.venv) $ python -m app.producers.users --csv <path-to-csv-file>
 ```
+
+#### Order Producer
+
+To create new Orders, there needs to be customers and deliveries in the database.
+If there are none, the [`testdata.py`](#order-dependency-data) program can be
+used to create some dummy data.
+
+```shell
+(.venv) $ python -m app.produders.orders --help
+(.venv) $ python -m app.produders.orders --count 10 --active 5
+```
+
+#### Order dependency data
+
+To create dependency data for Orders, you can use the `testdata.py` program.
+
+```shell
+(.venv) $ python -m test.testdata --help
+(.venv) $ python -m test.testdata --all 5
+```
+
+The last command will create 5 customers, addresses, deliveries, and drivers.
+It will also create 10 users, 5, customer users and 5 driver users.
 
 ### Run tests
 
