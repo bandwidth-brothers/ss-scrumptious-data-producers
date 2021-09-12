@@ -15,7 +15,7 @@ from app.db.database import Database
 
 
 class UsersArgParser:
-    def __init__(self):
+    def __init__(self, args):
         self.parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter,
                                               description="""Generate user data in MySQL database.
 A comma separated values (CSV) file with a dataset may be provided
@@ -34,11 +34,11 @@ userId,userRole,username,password,email""")
         self.parser.add_argument('--admins', type=int, help='umber of admins to generate')
         self.parser.add_argument('--emps', type=int, help='number of employees to generate')
         self.parser.add_argument('--drivers', type=int, help='number of drivers to generate')
-        self.args = self.parser.parse_args()
+        self.args = self.parser.parse_args(args)
 
 
 class User:
-    def __init__(self, user_id, user_role, username, password, email):
+    def __init__(self, user_id: uuid.UUID, user_role: str, username: str, password: str, email: str):
         self.user_id = user_id
         self.username = username
         self.password = password
@@ -46,8 +46,14 @@ class User:
         self.user_role = user_role
 
     def __str__(self):
-        return f"id: {self.user_id}, role: {self.user_role}, username: {self.username},"\
+        return f"id: {self.user_id.hex}, role: {self.user_role}, username: {self.username},"\
                f"password: {self.password}, email: {self.email}"
+
+    class Role:
+        ADMIN = 'ADMIN'
+        EMPLOYEE = 'EMPLOYEE'
+        CUSTOMER = 'CUSTOMER'
+        DRIVER = 'DRIVER'
 
 
 class UserGenerator:
@@ -150,13 +156,13 @@ class UsersProducer:
         """
         users = []
         for _ in range(num_custs):
-            users.append(UserGenerator.generate_user(role='CUSTOMER'))
+            users.append(UserGenerator.generate_user(role=User.Role.CUSTOMER))
         for _ in range(num_admins):
-            users.append(UserGenerator.generate_user(role='ADMIN'))
+            users.append(UserGenerator.generate_user(role=User.Role.ADMIN))
         for _ in range(num_emps):
-            users.append(UserGenerator.generate_user(role='EMPLOYEE'))
+            users.append(UserGenerator.generate_user(role=User.Role.EMPLOYEE))
         for _ in range(num_drivers):
-            users.append(UserGenerator.generate_user(role='DRIVER'))
+            users.append(UserGenerator.generate_user(role=User.Role.DRIVER))
 
         print('The following users will be created:', end=os.linesep * 2)
         print_limit = 10
@@ -193,20 +199,20 @@ class UsersProducer:
                 username = row[2]
                 password = row[3]
                 email = row[4]
-                user = User(user_id, user_role, username, password, email)
+                user = User(uuid.UUID(user_id), user_role, username, password, email)
                 self.save_user(user)
 
 
-if __name__ == '__main__':
+def main(arguments):
     producer = UsersProducer(Database(Config()))
-    parser = UsersArgParser()
+    parser = UsersArgParser(arguments)
     args = parser.args
 
     csv_file = args.csv
     if csv_file:
         if not os.path.isfile(csv_file):
             print(f"{csv_file} does not exist.")
-            sys.exit(1)
+            return
         producer.produce_from_csv(csv_file)
     else:
         custs = args.custs or 0
@@ -214,3 +220,7 @@ if __name__ == '__main__':
         emps = args.emps or 0
         drivers = args.drivers or 0
         producer.produce_random(num_custs=custs, num_admins=admins, num_emps=emps, num_drivers=drivers)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

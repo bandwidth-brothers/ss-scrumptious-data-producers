@@ -158,10 +158,24 @@ It will also create 10 users, 5, customer users and 5 driver users.
 ### Run tests
 
 Make sure the [Python virtual environment is set up](#setup-python-virtual-environment)
-and then run the test script.
+and then run the test script. Test files should end with `_test.py`.
+Tests will be run using an H2 database.
 
 ```shell
 (.venv) $ test/runtests.sh
+```
+
+To use H2, the tests require two environment variables, `ENV_FILE` and `CLASSPATH`.
+
+* `ENV_FILE` - the `.env` file used for environment variables.
+* `CLASSPATH` - the Java classpath to find classes required for the JVM
+
+The `test/runtests.sh` file sets these environment variables. If you are running
+individual tests, instead of the entire test suite, you will need to set these
+
+```shell
+(.venv) $ ENV_FILE='./test/.env.test';CLASSPATH='./db/h2/lib/*' \
+ pytest test/producers/users_test.py::test_user_arg_parser
 ```
 
 Test files should end with `_test.py`. Tests will be run using an H2 database.
