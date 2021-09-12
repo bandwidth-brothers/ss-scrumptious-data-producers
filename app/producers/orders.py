@@ -37,7 +37,16 @@ orderId,customerId,deliveryId,isActive,confirmationCode""")
 
 
 class Order:
-    def __init__(self, order_id, cust_id, deliv_id, is_active, conf_code):
+    def __init__(self, order_id: uuid.UUID, cust_id: str, deliv_id: str, is_active: bool, conf_code: str):
+        """
+        Constructor for creating an Order.
+
+        :param order_id: UUID object
+        :param cust_id: Hex string of UUID
+        :param deliv_id: Hex string of UUID
+        :param is_active: whether the order is active or not
+        :param conf_code: string confirmation code
+        """
         self.order_id = order_id
         self.cust_id = cust_id
         self.deliv_id = deliv_id
@@ -51,13 +60,17 @@ class Order:
 
 class OrderGenerator:
     @classmethod
-    def generate_delivery_id(cls) -> uuid:
-        return uuid.uuid4()
+    def generate_order(cls, cust_id: str, deliv_id: str, is_active: bool) -> Order:
+        """
+        Generate an Order object.
 
-    @classmethod
-    def generate_order(cls, cust_id, deliv_id, is_active) -> Order:
+        :param cust_id: a uuid hex string of customer id
+        :param deliv_id: a uuid hex string of deliver id
+        :param is_active: whether the order is active
+        :return: the Order
+        """
         order_id = uuid.uuid4()
-        conf_code = str(uuid.uuid4())[0:10]
+        conf_code = str(uuid.uuid4()).replace('-', '')[0:10]
         return Order(order_id, cust_id, deliv_id, is_active, conf_code)
 
 
@@ -75,9 +88,8 @@ class OrderProducer:
             self.db.open_connection()
             with self.db.conn.cursor() as cursor:
                 cursor.execute("INSERT INTO `order` (orderId,customerId,deliveryId,isActive,confirmationCode) "
-                               "VALUES (%s, %s, %s, %s, %s)",
-                               (order.order_id.bytes, order.cust_id, order.deliv_id, order.is_active, order.conf_code))
-                self.db.conn.commit()
+                               "VALUES (UNHEX(?), UNHEX(?), UNHEX(?), ?, ?)",
+                               (order.order_id.hex, order.cust_id, order.deliv_id, order.is_active, order.conf_code))
         except pymysql.MySQLError as ex:
             print(f"Problem occurred saving order: {order}")
             log.error(ex)
@@ -136,37 +148,43 @@ class OrderProducer:
 
         :param csv_path: the path to the csv file
         """
-        def to_bytes(uuid_str):
-            return uuid.UUID(uuid_str).bytes
-
         with open(csv_path) as file:
             csv_reader = csv.reader(file, delimiter=',')
             cust_ids = get_customer_ids(self.db)
             deliv_ids = get_delivery_ids(self.db)
+            order_ids = get_order_ids(self.db)
             for row in csv_reader:
-                cust_id = to_bytes(row[1])
+                cust_id = row[1].lower()
                 if cust_id not in cust_ids:
-                    print(f"Customer with id {row[1]} does not exist. Order will not be created.")
+                    print(f"Customer with id {cust_id} does not exist. Order will not be created.")
                     continue
-                deliv_id = to_bytes(row[2])
+                deliv_id = row[2].lower()
                 if deliv_id not in deliv_ids:
-                    print(f"Delivery with id {row[2]} does not exist. Order will not be created.")
+                    print(f"Delivery with id {deliv_id} does not exist. Order will not be created.")
                     continue
-                order_id = uuid.UUID(row[0])
+                order_id = row[0].lower()
+                if order_id in order_ids:
+                    print(f"Order with id {order_id} already exists. Order will not be created.")
+                    continue
                 is_active = bool(row[3])
                 conf_code = row[4]
-                order = Order(order_id, cust_id, deliv_id, is_active, conf_code)
+                order = Order(uuid.UUID(order_id), cust_id, deliv_id, is_active, conf_code)
                 self.save_order(order)
 
 
+def get_order_ids(db: Database) -> list:
+    results = db.run_query("SELECT HEX(orderId) FROM `order`")
+    return list(map(lambda result: result[0].lower(), results))
+
+
 def get_customer_ids(db: Database) -> list:
-    results = db.run_query("SELECT customerId FROM customer")
-    return list(map(lambda result: result[0], results))
+    results = db.run_query("SELECT HEX(customerId) FROM customer")
+    return list(map(lambda result: result[0].lower(), results))
 
 
 def get_delivery_ids(db: Database) -> list:
-    results = db.run_query("SELECT deliveryId FROM delivery")
-    return list(map(lambda result: result[0], results))
+    results = db.run_query("SELECT HEX(deliveryId) FROM delivery")
+    return list(map(lambda result: result[0].lower(), results))
 
 
 def main(arguments):

@@ -133,14 +133,14 @@ Example commands to run producer programs
 
 ### Run tests
 
-Make sure a clean database is up and running. If using `docker-compose`,
-make sure the volumes are deleted before running `docker-compose up` (see not above)
-
-If the python environment is set up with the virtual environment, pytest should be installed.
+Make sure the [Python virtual environment is set up](#setup-python-virtual-environment)
+and then run the test script.
 
 ```shell
-(.venv) $ pytest
+(.venv) $ test/runtests.sh
 ```
+
+Test files should end with `_test.py`. Tests will be run using an H2 database.
 
 
 [docker]: https://docs.docker.com/get-docker/
