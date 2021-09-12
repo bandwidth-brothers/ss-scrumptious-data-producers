@@ -126,11 +126,11 @@ class UsersProducer:
             self.db.open_connection()
             with self.db.conn.cursor() as cursor:
                 sql = "INSERT INTO user (userId, username, password, email, userRole) " \
-                      "VALUES (%s, %s, %s, %s, %s)"
-                cursor.execute(sql, (user.user_id.bytes, user.username, user.password, user.email, user.user_role))
-            self.db.conn.commit()
+                      "VALUES (UNHEX(?), ?, ?, ?, ?)"
+                cursor.execute(sql, (user.user_id.hex, user.username, user.password, user.email, user.user_role))
         except pymysql.MySQLError as ex:
             print(f"Problem occurred saving user: {user}")
+            print("Not users will be saved.")
             log.error(ex)
             sys.exit(1)
         finally:

@@ -67,12 +67,12 @@ def test_user_producer_save_user():
     db.open_connection()
     with db.conn as conn:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT userId,userRole,username,password,email FROM user WHERE userId = %s',
-                           user.user_id.bytes)
+            cursor.execute('SELECT HEX(userId),userRole,username,password,email FROM user WHERE userId = UNHEX(?)',
+                           (user.user_id.hex,))
             result = cursor.fetchone()
     db.conn = None
 
-    assert result[0] == user.user_id.bytes
+    assert result[0].lower() == user.user_id.hex
     assert result[1] == user.user_role
     assert result[2] == user.username
     assert result[3] == user.password
@@ -81,6 +81,5 @@ def test_user_producer_save_user():
     db.open_connection()
     with db.conn as conn:
         with conn.cursor() as cursor:
-            cursor.execute('DELETE FROM user WHERE userId = %s', user.user_id.bytes)
-        conn.commit()
+            cursor.execute('DELETE FROM user WHERE userId = UNHEX(?)', (user.user_id.hex,))
     db.conn = None
