@@ -11,6 +11,7 @@
     * [Test database connection](#test-database-connection)
     * [Run producers](#run-producers)
     * [Run tests](#run-tests)
+* [Run in Production](#run-in-production)
 
 
 ## Setup Python Virtual Environment
@@ -157,11 +158,14 @@ It will also create 10 users, 5, customer users and 5 driver users.
 
 ### Run tests
 
-Make sure the [Python virtual environment is set up](#setup-python-virtual-environment)
-and then run the test script. Test files should end with `_test.py`.
-Tests will be run using an H2 database.
+Make sure the [Python virtual environment is set up](#setup-python-virtual-environment).
+Make sure Java runtime is installed and `JAVA_HOME` environment variable is set up.
+Test files should end with `_test.py`. Tests will be run using an H2 database.
 
 ```shell
+$ python3 -m venv .venv
+$ source .venv/bin/activate
+(.venv) $ pip install -r requirements.txt
 (.venv) $ test/runtests.sh
 ```
 
@@ -170,7 +174,7 @@ To use H2, the tests require two environment variables, `ENV_FILE` and `CLASSPAT
 * `ENV_FILE` - the `.env` file used for environment variables.
 * `CLASSPATH` - the Java classpath to find classes required for the JVM
 
-The `test/runtests.sh` file sets these environment variables. If you are running
+The [`test/runtests.sh`](/test/runtests.sh) file sets these environment variables. If you are running
 individual tests, instead of the entire test suite, you will need to set these
 
 ```shell
@@ -180,5 +184,22 @@ individual tests, instead of the entire test suite, you will need to set these
 
 Test files should end with `_test.py`. Tests will be run using an H2 database.
 
+## Run in Production
+
+* First make sure the [Python virtual environment is set up](#setup-python-virtual-environment).
+* Environment variables should be set up for:
+    * `DATABASE_URL`
+    * `DATABASE_USER`
+    * `DATABASE_PASSWORD`
+
+```shell
+$ export DATABASE_USERNAME='<username>'
+$ export DATABASE_PASSWORD='<password>'
+$ export DATABASE_URL='jdbc:mysql://localhost:3306/scrumptious'
+$ python3 -m venv .venv
+$ source .venv/bin/activate
+(.venv) $ pip install -r requirements.txt
+(.venv) $ python -m app.producers.users --admins 5 --custs 5
+```
 
 [docker]: https://docs.docker.com/get-docker/
