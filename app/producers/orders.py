@@ -10,6 +10,7 @@ import logging as log
 from argparse import RawTextHelpFormatter
 from app.db.config import Config
 from app.db.database import Database
+from app.producers.helpers import print_items_and_confirm
 
 
 class OrdersArgParser:
@@ -121,18 +122,7 @@ class OrderProducer:
             orders.append(order)
             num_active -= 1
 
-        print('The following orders will be created:', end=os.linesep * 2)
-        print_limit = 10
-        for i in range(len(orders)):
-            if i >= print_limit:
-                break
-            print(f"  {orders[i]}")
-        if len(orders) > print_limit:
-            remaining = len(orders) - print_limit
-            print(f"  {remaining} more...")
-        print()
-
-        answer = input('Would you like to insert these into the database [Y/n]? ')
+        answer = print_items_and_confirm(items=orders, item_type='orders')
         if answer.strip().lower() == 'n':
             print('No records will be inserted.')
             sys.exit(0)

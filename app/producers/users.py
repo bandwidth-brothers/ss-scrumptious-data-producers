@@ -13,6 +13,7 @@ import logging as log
 from argparse import RawTextHelpFormatter
 from app.db.config import Config
 from app.db.database import Database
+from app.producers.helpers import print_items_and_confirm
 
 
 class UsersArgParser:
@@ -170,18 +171,7 @@ class UsersProducer:
         for _ in range(num_drivers):
             users.append(UserGenerator.generate_user(role=User.Role.DRIVER))
 
-        print('The following users will be created:', end=os.linesep * 2)
-        print_limit = 10
-        for i in range(len(users)):
-            if i >= print_limit:
-                break
-            print(f"  {users[i]}")
-        if len(users) > print_limit:
-            remaining = len(users) - print_limit
-            print(f"  {remaining} more...")
-        print()
-
-        answer = input('Would you like to insert these into the database [Y/n]? ')
+        answer = print_items_and_confirm(items=users, item_type='users')
         if answer.strip().lower() == 'n':
             print('No records will be inserted.')
             sys.exit(0)
