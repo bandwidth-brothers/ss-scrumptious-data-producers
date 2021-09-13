@@ -3,6 +3,7 @@ import os
 import sys
 import csv
 import uuid
+import bcrypt
 import string
 import random
 import pymysql
@@ -46,7 +47,7 @@ class User:
         self.user_role = user_role
 
     def __str__(self):
-        return f"id: {self.user_id.hex}, role: {self.user_role}, username: {self.username},"\
+        return f"id: {self.user_id.hex}, role: {self.user_role}, username: {self.username}, "\
                f"password: {self.password}, email: {self.email}"
 
     class Role:
@@ -70,7 +71,12 @@ class UserGenerator:
         numbers = string.digits
         symbols = string.punctuation
         all_chars = lower + upper + numbers + symbols
-        return "".join(random.sample(all_chars, password_len))
+        password = "".join(random.sample(all_chars, password_len))
+
+        def _salt_and_hash(_password: str):
+            return bcrypt.hashpw(_password.encode('utf-8'), bcrypt.gensalt(rounds=10, prefix=b"2a"))
+
+        return _salt_and_hash(password).decode('utf-8')
 
     @classmethod
     def generate_username(cls, min_len=8, max_len=32) -> str:

@@ -46,8 +46,11 @@ def test_user_properties():
 
 
 def test_user_generator_password():
+    # hash result is 60 characters
     password = UserGenerator.generate_password(10)
-    assert len(password) == 10
+    assert len(password) == 60
+    password = UserGenerator.generate_password(20)
+    assert len(password) == 60
 
 
 def test_user_generator_username():
