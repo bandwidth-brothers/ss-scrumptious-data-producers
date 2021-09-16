@@ -1,7 +1,6 @@
 import argparse
 import logging as log
 import random
-import uuid
 from datetime import date
 
 import pymysql
@@ -29,8 +28,8 @@ First and last names are pulled from a file, which can be specified using comman
 
 class DriverProducer:
     def __init__(self, database: Database, first_name_path=None, last_name_path=None):
-        self.first_name_path = first_name_path or "../data/first_names.txt"
-        self.last_name_path = last_name_path or "../data/last_names.txt"
+        self.first_name_path = first_name_path or "./app/data/first_names.txt"
+        self.last_name_path = last_name_path or "./app/data/last_names.txt"
         self.database = database
 
         self.user_ids = self.get_driver_users()
@@ -69,7 +68,8 @@ class DriverProducer:
         try:
             with self.database.conn.cursor() as cursor:
                 records = []
-                cursor.execute("SELECT userId FROM scrumptious.user WHERE user.userRole=\"EMPLOYEE\"")
+                cursor.execute(
+                    "SELECT user.userId FROM user LEFT JOIN driver on user.userId=driver.driverId WHERE driver.driverId IS NULL;")
                 result = cursor.fetchall()
                 for row in result:
                     records.append(row[0])
@@ -97,7 +97,6 @@ class Driver:
     def __init__(self,
                  producer: DriverProducer,
                  driverId: bytes = None,
-                 userId: bytes = None,
                  locationId: bytes = None,
                  firstName: str = None,
                  lastName: str = None,
@@ -108,7 +107,6 @@ class Driver:
                  ):
         self.producer = producer
         self.driverId = driverId
-        self.userId = userId
         self.locationId = locationId
         self.firstName = firstName
         self.lastName = lastName
@@ -119,8 +117,7 @@ class Driver:
         self.rating = rating
 
     def create_random(self):
-        self.driverId = uuid.uuid4().bytes
-        self.userId = random.choice(self.producer.user_ids)
+        self.driverId = random.choice(self.producer.user_ids)
         self.locationId = random.choice(self.producer.address_ids)
         self.firstName = random.choice(self.producer.first_names)
         self.lastName = random.choice(self.producer.last_names)
@@ -133,16 +130,15 @@ class Driver:
     def save(self):
         try:
             with self.producer.database.conn.cursor() as cursor:
-                sql = "INSERT INTO driver (driverId, userId, locationId, firstName, lastName, " \
-                      "phone, email, dob, licenseNum, rating) " \
-                      "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+                sql = "INSERT INTO driver (driverId, addressId, firstName, lastName, " \
+                      "phone, dob, licenseNum, rating, picture, status) " \
+                      "VALUES (?,?,?,?,?,?,?,?,?,?)"
                 values = (
-                    self.driverId, self.userId, self.locationId, self.firstName, self.lastName,
-                    self.phone, self.email, self.dob, self.licenseNum, self.rating
+                    self.driverId, self.locationId, self.firstName, self.lastName,
+                    self.phone, self.dob, self.licenseNum, self.rating, "https://temp.url/", "active"
                 )
 
                 cursor.execute(sql, values)
-                self.producer.database.conn.commit()
                 cursor.close()
         except pymysql.MySQLError as e:
             log.error("Error creating a driver")
@@ -157,9 +153,9 @@ class Driver:
         return "".join(output)
 
     def __str__(self):
-        return f"ID: {self.driverId}\nUser ID: {self.userId}\nLocation ID: {self.locationId}\n" \
-               f"Name: {self.firstName} {self.lastName}\nPhone: {self.phone}\n" \
-               f"DOB: {self.dob}\nLicense Plate: {self.licenseNum}\nRating: {self.rating}"
+        return f"User ID: {self.userId}, Location ID: {self.locationId}, " \
+               f"Name: {self.firstName} {self.lastName}, Phone: {self.phone}, " \
+               f"DOB: {self.dob}, License Plate: {self.licenseNum}, Rating: {self.rating}"
 
 
 def main():

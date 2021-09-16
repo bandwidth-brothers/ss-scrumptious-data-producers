@@ -3,12 +3,12 @@ import csv
 import logging as log
 import random
 import string
-import uuid
 
 import pymysql
 
 from app.db.config import Config
 from app.db.database import Database
+from app.producers.helpers import print_items_and_confirm
 
 
 class RestaurantArgParser:
@@ -31,8 +31,8 @@ File should not have a header, and have the following columns (address,city,stat
 
 class RestaurantProducer:
     def __init__(self, database: Database, addr_csv_path=None, rest_names_path=None):
-        self.addr_csv_path = addr_csv_path or "../data/addresses.csv"
-        self.rest_names_path = rest_names_path or "../data/restaurant-names.txt"
+        self.addr_csv_path = addr_csv_path or "./app/data/addresses.csv"
+        self.rest_names_path = rest_names_path or "./app/data/restaurant-names.txt"
         self.database = database
 
         # [address,city,state,zip]
@@ -72,14 +72,15 @@ class RestaurantProducer:
             print(e)
 
     def create_random_address(self):
-        uid = uuid.uuid4().bytes
+        uid = 0
         try:
             addr = random.choice(self.addresses)
             with self.database.conn.cursor() as cursor:
-                sql = "INSERT INTO address (addressId,line1,line2,city,state,zip) " \
-                      "VALUES (%s,%s,%s,%s,%s,%s)"
-                cursor.execute(sql, (uid, addr[0], "", addr[1], addr[2], addr[3]))
-                self.database.conn.commit()
+                sql = "INSERT INTO address (line1,line2,city,state,zip) " \
+                      "VALUES (?,?,?,?,?);"
+                cursor.execute(sql, (addr[0], "", addr[1], addr[2], addr[3]))
+                cursor.execute("SELECT LAST_INSERT_ID();")
+                uid = cursor.fetchall()[0][0]
                 cursor.close()
         except pymysql.MySQLError as e:
             print(e)
@@ -93,11 +94,19 @@ class RestaurantProducer:
             print(restaurant)
             print("Example output, use the --num option to specify how many should be created")
         else:
+            created = []
             for i in range(quantity):
                 restaurant = Restaurant(self)
                 restaurant.create_random()
-                restaurant.save()
-            print(f"Created {quantity} restaurants in the database!")
+                created.append(restaurant)
+            answer = print_items_and_confirm(items=created, item_type="restaurants")
+            if answer.strip().lower() == "y":
+                for restaurant in created:
+                    restaurant.save()
+
+                print(f"Created {quantity} restaurants in the database!")
+            else:
+                print(f"No items created")
 
 
 class Restaurant:
@@ -126,7 +135,6 @@ class Restaurant:
         self.restaurantLogo = restaurantLogo
 
     def create_random(self):
-        self.restaurantId = uuid.uuid4().bytes
         self.addressId = self.producer.create_random_address()
         self.restaurantOwnerId = random.choice(self.producer.restaurant_owners)[0]
         self.name = random.choice(self.producer.names)
@@ -143,24 +151,23 @@ class Restaurant:
     def save(self):
         try:
             with self.producer.database.conn.cursor() as cursor:
-                sql = "INSERT INTO restaurant (restaurantId, addressId, restaurantOwnerId, name, rating, priceCategory, phone, isActive, restaurantLogo) " \
-                      "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+                sql = "INSERT INTO restaurant (addressId, restaurantOwnerId, name, rating, priceCategory, phone, isActive, restaurantLogo) " \
+                      "VALUES (?,?,?,?,?,?,?,?)"
                 values = (
-                    self.restaurantId, self.addressId, self.restaurantOwnerId, self.name, self.rating,
+                    self.addressId, self.restaurantOwnerId, self.name, self.rating,
                     self.priceCategory,
                     self.phone, self.isActive, self.restaurantLogo)
 
                 cursor.execute(sql, values)
-                self.producer.database.conn.commit()
                 cursor.close()
         except pymysql.MySQLError as e:
             print(e)
 
     def __str__(self):
-        return f"ID: {self.restaurantId}\nAddress ID: {self.addressId}\n" \
-               f"Owner ID: {self.restaurantOwnerId}\nName: {self.name}\n" \
-               f"Rating: {self.rating}\nPrice category: {self.priceCategory}\n" \
-               f"Phone: {self.phone}\nIs Active: {self.isActive}\nLogo: {self.restaurantLogo}"
+        return f"Address ID: {self.addressId}, " \
+               f"Owner ID: {self.restaurantOwnerId}, Name: {self.name}, " \
+               f"Rating: {self.rating}, Price category: {self.priceCategory}, " \
+               f"Phone: {self.phone}, Is Active: {self.isActive}, Logo: {self.restaurantLogo}"
 
 
 def main():
