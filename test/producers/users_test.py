@@ -34,13 +34,11 @@ def test_user_arg_parser():
 def test_user_properties():
     user_id = uuid.uuid4()
     user_role = User.Role.EMPLOYEE
-    username = 'scrumptious'
     password = 'secret'
     email = 'me@email.com'
-    user = User(user_id, user_role, username, password, email)
+    user = User(user_id, user_role, password, email)
     assert user.user_id == user_id
     assert user.user_role == user_role
-    assert user.username == username
     assert user.password == password
     assert user.email == email
 
@@ -51,13 +49,6 @@ def test_user_generator_password():
     assert len(password) == 60
     password = UserGenerator.generate_password(20)
     assert len(password) == 60
-
-
-def test_user_generator_username():
-    username = UserGenerator.generate_username(20, 25)
-    assert len(username) >= 20
-    assert len(username) <= 25
-    assert username.islower() is True
 
 
 def assert_is_email(email: str):
@@ -76,7 +67,6 @@ def test_user_generator_user():
     user = UserGenerator.generate_user(User.Role.ADMIN)
     assert len(user.user_id.bytes) == len(uuid.uuid4().bytes)
     assert user.user_role == User.Role.ADMIN
-    assert user.username.islower() is True
     assert user.password is not None
     assert_is_email(user.email)
 
@@ -100,16 +90,15 @@ def test_user_producer_save_user():
     db.open_connection()
     with db.conn as conn:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT HEX(userId),userRole,username,password,email FROM user WHERE userId = UNHEX(?)',
+            cursor.execute('SELECT HEX(userId),userRole,password,email FROM user WHERE userId = UNHEX(?)',
                            (user.user_id.hex,))
             result = cursor.fetchone()
     db.conn = None
 
     assert result[0].lower() == user.user_id.hex
     assert result[1] == user.user_role
-    assert result[2] == user.username
-    assert result[3] == user.password
-    assert result[4] == user.email
+    assert result[2] == user.password
+    assert result[3] == user.email
 
     delete_users()
 
@@ -167,8 +156,8 @@ def _create_csv_file(csv_file: str, custs: int = 0, drivers: int = 0, admins: in
 
     with open(csv_file, 'w') as f:
         for user in users:
-            f.write(f"{user.user_id.hex},{user.user_role},{user.username},"
-                    f"{user.password.replace(',', '!')},{user.email}{os.linesep}")
+            f.write(f"{user.user_id.hex},{user.user_role},{user.password.replace(',', '!')},"
+                    f"{user.email}{os.linesep}")
 
 
 def _read_csv_file(csv_file: str) -> list[User]:
@@ -180,9 +169,8 @@ def _read_csv_file(csv_file: str) -> list[User]:
             fields = line.strip().split(',')
             user = User(user_id=uuid.UUID(fields[0]),
                         user_role=fields[1],
-                        username=fields[2],
-                        password=fields[3],
-                        email=fields[4])
+                        password=fields[2],
+                        email=fields[3])
             users.append(user)
     return users
 
@@ -199,13 +187,12 @@ def test_user_producer_producer_from_csv_correct_fields():
     producer.produce_from_csv(f"{TEST_CSV_DIR}/users-test.csv")
 
     user = _read_csv_file(f"{TEST_CSV_DIR}/users-test.csv")[0]
-    result = db.run_query('SELECT HEX(userId),userRole,username,password,email FROM `user`')[0]
+    result = db.run_query('SELECT HEX(userId),userRole,password,email FROM `user`')[0]
 
     assert user.user_id.hex == result[0].lower()
     assert user.user_role == result[1]
-    assert user.username == result[2]
-    assert user.password == result[3]
-    assert user.email == result[4]
+    assert user.password == result[2]
+    assert user.email == result[3]
 
     delete_users()
     shutil.rmtree(TEST_CSV_DIR)
