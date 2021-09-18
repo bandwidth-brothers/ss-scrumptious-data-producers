@@ -40,16 +40,14 @@ userId,userRole,username,password,email""")
 
 
 class User:
-    def __init__(self, user_id: uuid.UUID, user_role: str, username: str, password: str, email: str):
+    def __init__(self, user_id: uuid.UUID, user_role: str, password: str, email: str):
         self.user_id = user_id
-        self.username = username
         self.password = password
         self.email = email
         self.user_role = user_role
 
     def __str__(self):
-        return f"id: {self.user_id.hex}, role: {self.user_role}, username: {self.username}, "\
-               f"password: {self.password}, email: {self.email}"
+        return f"id: {self.user_id.hex}, role: {self.user_role}, password: {self.password}, email: {self.email}"
 
     class Role:
         ADMIN = 'ADMIN'
@@ -80,18 +78,6 @@ class UserGenerator:
         return _salt_and_hash(password).decode('utf-8')
 
     @classmethod
-    def generate_username(cls, min_len=8, max_len=32) -> str:
-        """
-        Generate a random username.
-
-        :param min_len: the minimum length of the username
-        :param max_len: the maximum length of the username
-        :return: the generated username
-        """
-        length = random.randint(min_len, max_len)
-        return "".join(random.sample(string.ascii_lowercase, length))
-
-    @classmethod
     def generate_email(cls, min_len=4, max_len=20) -> str:
         """
         Generate a random email.
@@ -117,11 +103,10 @@ class UserGenerator:
         :param role: the role of the user
         :return: the generated User
         """
-        username = cls.generate_username(min_len=8, max_len=12)
         password = cls.generate_password(password_len=12)
         email = cls.generate_email(min_len=4, max_len=12)
         user_id = uuid.uuid4()
-        user = User(user_id, role, username, password, email)
+        user = User(user_id=user_id, user_role=role, password=password, email=email)
         return user
 
 
@@ -138,9 +123,9 @@ class UsersProducer:
         try:
             self.db.open_connection()
             with self.db.conn.cursor() as cursor:
-                sql = "INSERT INTO user (userId, username, password, email, userRole) " \
-                      "VALUES (UNHEX(?), ?, ?, ?, ?)"
-                cursor.execute(sql, (user.user_id.hex, user.username, user.password, user.email, user.user_role))
+                sql = "INSERT INTO user (userId, userRole, password, email) " \
+                      "VALUES (UNHEX(?), ?, ?, ?)"
+                cursor.execute(sql, (user.user_id.hex, user.user_role, user.password, user.email))
         except pymysql.MySQLError as ex:
             print(f"Problem occurred saving user: {user}")
             print("Not users will be saved.")
@@ -183,7 +168,7 @@ class UsersProducer:
     def produce_from_csv(self, csv_path: str):
         """
         Create users from a csv file. The csv file should be in the format (no header)
-        userId,userRole,username,password,email
+        userId,userRole,password,email
 
         :param csv_path: the path to the csv file
         """
@@ -192,10 +177,9 @@ class UsersProducer:
             for row in csv_reader:
                 user_id = row[0]
                 user_role = row[1]
-                username = row[2]
-                password = row[3]
-                email = row[4]
-                user = User(uuid.UUID(user_id), user_role, username, password, email)
+                password = row[2]
+                email = row[3]
+                user = User(uuid.UUID(user_id), user_role, password, email)
                 self.save_user(user)
 
 
