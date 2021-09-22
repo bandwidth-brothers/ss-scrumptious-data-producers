@@ -3,6 +3,7 @@ import os
 import sys
 import csv
 import uuid
+import json
 import bcrypt
 import string
 import random
@@ -20,18 +21,20 @@ class UsersArgParser:
     def __init__(self, args):
         self.parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter,
                                               description="""Generate user data in MySQL database.
-A comma separated values (CSV) file with a dataset may be provided
-as an argument using the --csv option. When this argument is provided,
-others will be ignored.
+A CSV, JSON, or XML file with a dataset may be provided as an argument using the
+--csv, --json, or --xml option, respectively. When either of these arguments are
+provided, others will be ignored.
 
 examples:
 
     python -m app.producers.users --csv <path-to-csv-file>
+    python -m app.producers.users --json <path-to-json-file>
+    python -m app.producers.users --xml <path-to-xml-file>
     python -m app.producers.users --custs 20 --admins 2 --emps 5 --drivers 5
     python -m app.producers.users --admins 2""")
-        self.parser.add_argument('-f', '--csv', type=str, help="""a csv file with user data.
-File should be in the format (no header):
-userId,userRole,username,password,email""")
+        self.parser.add_argument('--csv', type=str, help="""a csv file with user data.
+File should be in the format following (no header). All fields required.:
+user_id,user_role,password,email,confirmed,acct_expired,acct_locked,cred_expired""")
         self.parser.add_argument('--custs', type=int, help='number of customers to generate')
         self.parser.add_argument('--admins', type=int, help='umber of admins to generate')
         self.parser.add_argument('--emps', type=int, help='number of employees to generate')
@@ -40,14 +43,27 @@ userId,userRole,username,password,email""")
 
 
 class User:
-    def __init__(self, user_id: uuid.UUID, user_role: str, password: str, email: str):
+    def __init__(self, user_id: uuid.UUID, user_role: str, password: str, email: str, enabled: bool = True,
+                 confirmed: bool = True, account_non_expired: bool = True, account_non_locked: bool = True,
+                 credentials_non_expired: bool = True):
         self.user_id = user_id
         self.password = password
         self.email = email
         self.user_role = user_role
+        self.enabled = enabled
+        self.confirmed = confirmed
+        self.account_non_expired = account_non_expired
+        self.account_non_locked = account_non_locked
+        self.credentials_non_expired = credentials_non_expired
 
     def __str__(self):
-        return f"id: {self.user_id.hex}, role: {self.user_role}, password: {self.password}, email: {self.email}"
+        def _trunc(val: str, length: int):
+            return val[0: length] + "..."
+
+        return f"id: {_trunc(str(self.user_id), 12)}, role: {self.user_role}, passwd: {_trunc(self.password, 16)}, " \
+               f"email: {self.email}, enabled: {self.enabled}, confirmed: {self.confirmed}, " \
+               f"acct_expired: {self.account_non_expired}, acct_locked: {self.account_non_locked}, " \
+               f"cred_expired: {self.credentials_non_expired}"
 
     class Role:
         ADMIN = 'ADMIN'
@@ -123,14 +139,16 @@ class UsersProducer:
         try:
             self.db.open_connection()
             with self.db.conn.cursor() as cursor:
-                sql = "INSERT INTO user (userId, userRole, password, email) " \
-                      "VALUES (UNHEX(?), ?, ?, ?)"
-                cursor.execute(sql, (user.user_id.hex, user.user_role, user.password, user.email))
+                sql = "INSERT INTO user (id, user_role, password, email, enabled, confirmed, account_non_expired, " \
+                      "account_non_locked, credentials_non_expired) " \
+                      "VALUES (UNHEX(?), ?, ?, ?, ?, ?, ?, ?, ?)"
+                cursor.execute(sql, (user.user_id.hex, user.user_role, user.password, user.email, user.enabled,
+                                     user.confirmed, user.account_non_expired, user.account_non_locked,
+                                     user.credentials_non_expired))
         except pymysql.MySQLError as ex:
             print(f"Problem occurred saving user: {user}")
-            print("Not users will be saved.")
             log.error(ex)
-            sys.exit(1)
+            return
         finally:
             if self.db.conn:
                 self.db.conn.close()
@@ -167,11 +185,13 @@ class UsersProducer:
 
     def produce_from_csv(self, csv_path: str):
         """
-        Create users from a csv file. The csv file should be in the format (no header)
-        userId,userRole,password,email
+        Create users from a csv file. The csv file should be in the format (no header):
+        user_id,user_role,password,email,confirmed,acct_expired,acct_locked,cred_expired
+        All fields must be present.
 
         :param csv_path: the path to the csv file
         """
+        users = []
         with open(csv_path) as file:
             csv_reader = csv.reader(file, delimiter=',')
             for row in csv_reader:
@@ -179,8 +199,23 @@ class UsersProducer:
                 user_role = row[1]
                 password = row[2]
                 email = row[3]
-                user = User(uuid.UUID(user_id), user_role, password, email)
+                enabled = bool(row[4])
+                confirmed = bool(row[5])
+                acct_expired = bool(row[6])
+                acct_locked = bool(row[7])
+                cred_expired = bool(row[8])
+                users.append(User(user_id=uuid.UUID(user_id), user_role=user_role, password=password, email=email,
+                                  enabled=enabled, confirmed=confirmed, account_non_expired=acct_expired,
+                                  account_non_locked=acct_locked, credentials_non_expired=cred_expired))
+
+        answer = print_items_and_confirm(items=users, item_type='users')
+        if answer.strip().lower() == 'n':
+            print('No records will be inserted.')
+            sys.exit(0)
+        else:
+            for user in users:
                 self.save_user(user)
+            print(f"{len(users)} users created successfully.")
 
 
 def main(arguments):
