@@ -7,6 +7,7 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL,ALLOW_INVALID_DATES';
 -- -----------------------------------------------------
 -- Schema scrumptious
 -- -----------------------------------------------------
+DROP SCHEMA IF EXISTS `scrumptious` ;
 
 -- -----------------------------------------------------
 -- Schema scrumptious
@@ -15,401 +16,449 @@ CREATE SCHEMA IF NOT EXISTS `scrumptious` DEFAULT CHARACTER SET utf8 ;
 USE `scrumptious` ;
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`user`
+-- Table `user`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`user` (
-  `userId` BINARY(16) NOT NULL,
-  `userRole` VARCHAR(255) NOT NULL,
-  `username` VARCHAR(16) NOT NULL,
-  `password` VARCHAR(32) NOT NULL,
+DROP TABLE IF EXISTS `user` ;
+
+CREATE TABLE IF NOT EXISTS `user` (
+  `id` BINARY(16) NOT NULL DEFAULT (uuid_to_bin(uuid())),
+  `user_role` VARCHAR(255) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
   `email` VARCHAR(255) NOT NULL,
-  `profilePic` VARCHAR(255) NULL,
-  `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE INDEX `username_UNIQUE` (`username` ASC),
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `enabled` TINYINT NOT NULL,
+  `confirmed` TINYINT NOT NULL,
+  `account_non_expired` TINYINT NOT NULL,
+  `account_non_locked` TINYINT NOT NULL,
+  `credentials_non_expired` TINYINT NOT NULL,
   UNIQUE INDEX `email_UNIQUE` (`email` ASC),
-  PRIMARY KEY (`userId`))
+  PRIMARY KEY (`id`))
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`address`
+-- Table `address`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`address` (
-  `addressId` BINARY(16) NOT NULL,
+DROP TABLE IF EXISTS `address` ;
+
+CREATE TABLE IF NOT EXISTS `address` (
+  `id` BIGINT(8) NOT NULL AUTO_INCREMENT,
   `line1` VARCHAR(255) NOT NULL,
-  `line2` VARCHAR(45) NULL,
-  `city` VARCHAR(45) NOT NULL,
-  `state` VARCHAR(45) NOT NULL,
-  `zip` VARCHAR(45) NOT NULL,
-  PRIMARY KEY (`addressId`),
-  UNIQUE INDEX `addressId_UNIQUE` (`addressId` ASC))
+  `line2` VARCHAR(255) NULL,
+  `city` VARCHAR(255) NOT NULL,
+  `state` CHAR(2) NOT NULL,
+  `zip` VARCHAR(10) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `addressId_UNIQUE` (`id` ASC))
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`restaurant_owner`
+-- Table `owner`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`restaurant_owner` (
-  `restaurantOwnerId` BINARY(16) NOT NULL,
-  `userId` BINARY(16) NOT NULL,
-  `firstName` VARCHAR(45) NULL,
-  `lastName` VARCHAR(45) NULL,
-  `phone` VARCHAR(45) NULL,
-  `email` VARCHAR(45) NULL,
-  PRIMARY KEY (`restaurantOwnerId`),
-  UNIQUE INDEX `customerId_UNIQUE` (`restaurantOwnerId` ASC),
-  INDEX `fk_customer_user1_idx` (`userId` ASC),
+DROP TABLE IF EXISTS `owner` ;
+
+CREATE TABLE IF NOT EXISTS `owner` (
+  `id` BINARY(16) NOT NULL,
+  `first_name` VARCHAR(255) NULL,
+  `last_name` VARCHAR(255) NULL,
+  `phone` VARCHAR(255) NULL,
+  `email` VARCHAR(255) NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `customerId_UNIQUE` (`id` ASC),
   CONSTRAINT `fk_customer_user10`
-    FOREIGN KEY (`userId`)
-    REFERENCES `scrumptious`.`user` (`userId`)
+    FOREIGN KEY (`id`)
+    REFERENCES `user` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`restaurant`
+-- Table `restaurant`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`restaurant` (
-  `restaurantId` BINARY(16) NOT NULL,
-  `addressId` BINARY(16) NOT NULL,
-  `restaurantOwnerId` BINARY(16) NOT NULL,
-  `name` VARCHAR(45) NOT NULL,
+DROP TABLE IF EXISTS `restaurant` ;
+
+CREATE TABLE IF NOT EXISTS `restaurant` (
+  `id` BIGINT(8) NOT NULL AUTO_INCREMENT,
+  `address_id` BIGINT(8) NOT NULL,
+  `owner_id` BINARY(16) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
   `rating` FLOAT NOT NULL DEFAULT 0,
-  `priceCategory` INT NULL,
-  `phone` VARCHAR(45) NULL,
-  `isActive` TINYINT NULL,
-  `restaurantLogo` VARCHAR(255) NULL,
-  PRIMARY KEY (`restaurantId`, `addressId`),
-  INDEX `fk_restaurant_address1_idx` (`addressId` ASC),
-  UNIQUE INDEX `restaurantId_UNIQUE` (`restaurantId` ASC),
-  INDEX `fk_restaurant_restaurant_owner1_idx` (`restaurantOwnerId` ASC),
+  `price_category` VARCHAR(3) NULL,
+  `phone` VARCHAR(255) NULL,
+  `is_active` TINYINT NULL,
+  `picture` VARCHAR(255) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_restaurant_address1_idx` (`address_id` ASC),
+  UNIQUE INDEX `restaurantId_UNIQUE` (`id` ASC),
+  INDEX `fk_restaurant_restaurant_owner1_idx` (`owner_id` ASC),
   CONSTRAINT `fk_restaurant_address1`
-    FOREIGN KEY (`addressId`)
-    REFERENCES `scrumptious`.`address` (`addressId`)
+    FOREIGN KEY (`address_id`)
+    REFERENCES `address` (`id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE,
   CONSTRAINT `fk_restaurant_restaurant_owner1`
-    FOREIGN KEY (`restaurantOwnerId`)
-    REFERENCES `scrumptious`.`restaurant_owner` (`restaurantOwnerId`)
+    FOREIGN KEY (`owner_id`)
+    REFERENCES `owner` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`category`
+-- Table `cuisine`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`category` (
-  `categoryId` BINARY(16) NOT NULL,
-  `type` VARCHAR(45) NOT NULL,
-  PRIMARY KEY (`categoryId`))
+DROP TABLE IF EXISTS `cuisine` ;
+
+CREATE TABLE IF NOT EXISTS `cuisine` (
+  `id` BIGINT(8) NOT NULL AUTO_INCREMENT,
+  `type` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `id_UNIQUE` (`id` ASC))
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`restaurant_category`
+-- Table `menuitem`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`restaurant_category` (
-  `restaurantId` BINARY(16) NOT NULL,
-  `categoryId` BINARY(16) NOT NULL,
-  INDEX `fk_restaurant_category_restaurant1_idx` (`restaurantId` ASC),
-  INDEX `fk_restaurant_category_category1_idx` (`categoryId` ASC),
-  PRIMARY KEY (`restaurantId`, `categoryId`),
-  CONSTRAINT `fk_restaurant_category_restaurant1`
-    FOREIGN KEY (`restaurantId`)
-    REFERENCES `scrumptious`.`restaurant` (`restaurantId`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
-  CONSTRAINT `fk_restaurant_category_category1`
-    FOREIGN KEY (`categoryId`)
-    REFERENCES `scrumptious`.`category` (`categoryId`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
-ENGINE = InnoDB;
+DROP TABLE IF EXISTS `menuitem` ;
 
-
--- -----------------------------------------------------
--- Table `scrumptious`.`menuItem`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`menuItem` (
-  `menuItemId` BINARY(16) NOT NULL,
-  `restaurantId` BINARY(16) NOT NULL,
-  `name` VARCHAR(45) NOT NULL,
-  `rating` FLOAT NOT NULL DEFAULT 0,
+CREATE TABLE IF NOT EXISTS `menuitem` (
+  `id` BIGINT(8) NOT NULL AUTO_INCREMENT,
+  `restaurant_id` BIGINT(8) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
   `price` FLOAT NOT NULL,
-  `itemPicture` VARCHAR(255) NULL,
+  `picture` VARCHAR(255) NULL,
   `description` VARCHAR(255) NULL,
-  `isAvailable` TINYINT NOT NULL DEFAULT 0,
-  `tag` VARCHAR(45) NULL,
-  `size` VARCHAR(45) NULL,
-  PRIMARY KEY (`menuItemId`),
-  INDEX `fk_food_restaurant1_idx` (`restaurantId` ASC),
-  UNIQUE INDEX `consumableItemId_UNIQUE` (`menuItemId` ASC),
+  `is_available` TINYINT NOT NULL DEFAULT 0,
+  `size` VARCHAR(255) NULL,
+  `discount` FLOAT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_food_restaurant1_idx` (`restaurant_id` ASC),
+  UNIQUE INDEX `consumableItemId_UNIQUE` (`id` ASC),
   CONSTRAINT `fk_food_restaurant1`
-    FOREIGN KEY (`restaurantId`)
-    REFERENCES `scrumptious`.`restaurant` (`restaurantId`)
+    FOREIGN KEY (`restaurant_id`)
+    REFERENCES `restaurant` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`menu_category`
+-- Table `category`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`menu_category` (
-  `categoryId` BINARY(16) NOT NULL,
-  `type` VARCHAR(45) NOT NULL,
-  PRIMARY KEY (`categoryId`),
-  UNIQUE INDEX `categoryId_UNIQUE` (`categoryId` ASC))
+DROP TABLE IF EXISTS `category` ;
+
+CREATE TABLE IF NOT EXISTS `category` (
+  `id` BIGINT(8) NOT NULL AUTO_INCREMENT,
+  `type` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `categoryId_UNIQUE` (`id` ASC))
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`category_menuItem`
+-- Table `driver`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`category_menuItem` (
-  `categoryId` BINARY(16) NOT NULL,
-  `menuItemId` BINARY(16) NOT NULL,
-  INDEX `fk_food_category_food1_idx` (`menuItemId` ASC),
-  PRIMARY KEY (`categoryId`, `menuItemId`),
-  INDEX `fk_food_category_menu_category1_idx` (`categoryId` ASC),
-  CONSTRAINT `fk_food_category_food1`
-    FOREIGN KEY (`menuItemId`)
-    REFERENCES `scrumptious`.`menuItem` (`menuItemId`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
-  CONSTRAINT `fk_food_category_menu_category1`
-    FOREIGN KEY (`categoryId`)
-    REFERENCES `scrumptious`.`menu_category` (`categoryId`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
-ENGINE = InnoDB;
+DROP TABLE IF EXISTS `driver` ;
 
-
--- -----------------------------------------------------
--- Table `scrumptious`.`driver`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`driver` (
-  `driverId` BINARY(16) NOT NULL,
-  `userId` BINARY(16) NOT NULL,
-  `locationId` BINARY(16) NOT NULL,
-  `firstName` VARCHAR(45) NULL,
-  `lastName` VARCHAR(45) NULL,
-  `phone` VARCHAR(45) NULL,
-  `email` VARCHAR(45) NULL,
-  `dob` VARCHAR(45) NULL,
-  `licenseNum` VARCHAR(45) NULL,
+CREATE TABLE IF NOT EXISTS `driver` (
+  `id` BINARY(16) NOT NULL,
+  `address_id` BIGINT(8) NOT NULL,
+  `first_name` VARCHAR(255) NOT NULL,
+  `last_name` VARCHAR(255) NOT NULL,
+  `phone` VARCHAR(255) NOT NULL,
+  `dob` VARCHAR(255) NULL,
+  `license_num` VARCHAR(255) NOT NULL,
   `rating` FLOAT NULL,
-  PRIMARY KEY (`driverId`),
-  INDEX `fk_driver_address1_idx` (`locationId` ASC),
-  UNIQUE INDEX `driverId_UNIQUE` (`driverId` ASC),
-  INDEX `fk_driver_user1_idx` (`userId` ASC),
+  `picture` VARCHAR(255) NULL,
+  `status` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(255) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_driver_address1_idx` (`address_id` ASC),
+  UNIQUE INDEX `driverId_UNIQUE` (`id` ASC),
+  INDEX `fk_driver_user1_idx` (`id` ASC),
   CONSTRAINT `fk_driver_address1`
-    FOREIGN KEY (`locationId`)
-    REFERENCES `scrumptious`.`address` (`addressId`)
+    FOREIGN KEY (`address_id`)
+    REFERENCES `address` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_driver_user1`
-    FOREIGN KEY (`userId`)
-    REFERENCES `scrumptious`.`user` (`userId`)
+    FOREIGN KEY (`id`)
+    REFERENCES `user` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`delivery`
+-- Table `delivery`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`delivery` (
-  `deliveryId` BINARY(16) NOT NULL,
-  `destinationId` BINARY(16) NOT NULL,
-  `driverId` BINARY(16) NOT NULL,
-  `estimatedDel` TIMESTAMP NULL,
-  PRIMARY KEY (`deliveryId`),
-  INDEX `fk_delivery_address1_idx` (`destinationId` ASC),
-  INDEX `fk_delivery_driver1_idx` (`driverId` ASC),
-  UNIQUE INDEX `deliveryId_UNIQUE` (`deliveryId` ASC),
+DROP TABLE IF EXISTS `delivery` ;
+
+CREATE TABLE IF NOT EXISTS `delivery` (
+  `id` BIGINT(8) NOT NULL AUTO_INCREMENT,
+  `address_id` BIGINT(8) NOT NULL,
+  `driver_id` BINARY(16) NOT NULL,
+  `estimated_delivery_time` TIMESTAMP NULL,
+  `delivery_status` VARCHAR(255) NULL,
+  `actual_delivery_time` TIMESTAMP NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_delivery_address1_idx` (`address_id` ASC),
+  INDEX `fk_delivery_driver1_idx` (`driver_id` ASC),
+  UNIQUE INDEX `deliveryId_UNIQUE` (`id` ASC),
   CONSTRAINT `fk_delivery_address1`
-    FOREIGN KEY (`destinationId`)
-    REFERENCES `scrumptious`.`address` (`addressId`)
+    FOREIGN KEY (`address_id`)
+    REFERENCES `address` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_delivery_driver1`
-    FOREIGN KEY (`driverId`)
-    REFERENCES `scrumptious`.`driver` (`driverId`)
+    FOREIGN KEY (`driver_id`)
+    REFERENCES `driver` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`customer`
+-- Table `customer`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`customer` (
-  `customerId` BINARY(16) NOT NULL,
-  `userId` BINARY(16) NOT NULL,
-  `firstName` VARCHAR(45) NULL,
-  `lastName` VARCHAR(45) NULL,
-  `phone` VARCHAR(45) NULL,
-  `email` VARCHAR(45) NULL,
+DROP TABLE IF EXISTS `customer` ;
+
+CREATE TABLE IF NOT EXISTS `customer` (
+  `id` BINARY(16) NOT NULL,
+  `first_name` VARCHAR(255) NOT NULL,
+  `last_name` VARCHAR(255) NOT NULL,
+  `phone` VARCHAR(255) NOT NULL,
   `dob` DATE NULL,
-  `loyaltyPoints` VARCHAR(45) NULL,
-  PRIMARY KEY (`customerId`),
-  UNIQUE INDEX `customerId_UNIQUE` (`customerId` ASC),
-  INDEX `fk_customer_user1_idx` (`userId` ASC),
+  `loyalty_points` INT NOT NULL DEFAULT 0,
+  `picture` VARCHAR(255) NULL,
+  `veteranary_status` TINYINT NULL,
+  `email` VARCHAR(255) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_customer_user1_idx` (`id` ASC),
+  UNIQUE INDEX `userId_UNIQUE` (`id` ASC),
   CONSTRAINT `fk_customer_user1`
-    FOREIGN KEY (`userId`)
-    REFERENCES `scrumptious`.`user` (`userId`)
+    FOREIGN KEY (`id`)
+    REFERENCES `user` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`order`
+-- Table `order`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`order` (
-  `orderId` BINARY(16) NOT NULL,
-  `customerId` BINARY(16) NOT NULL,
-  `deliveryId` BINARY(16) NOT NULL,
-  `isActive` TINYINT NOT NULL DEFAULT 0,
-  `confirmationCode` VARCHAR(45) NULL,
-  `createdAt` TIMESTAMP NULL,
-  `updatedAt` TIMESTAMP NULL,
-  PRIMARY KEY (`orderId`),
-  INDEX `fk_order_delivery1_idx` (`deliveryId` ASC),
-  UNIQUE INDEX `orderId_UNIQUE` (`orderId` ASC),
-  INDEX `fk_order_customer1_idx` (`customerId` ASC),
+DROP TABLE IF EXISTS `order` ;
+
+CREATE TABLE IF NOT EXISTS `order` (
+  `id` BIGINT(8) NOT NULL AUTO_INCREMENT,
+  `customer_id` BINARY(16) NOT NULL,
+  `restaurant_id` BIGINT(8) NOT NULL,
+  `delivery_id` BIGINT(8) NOT NULL,
+  `confirmation_code` VARCHAR(255) NULL,
+  `requested_delivery_time` TIMESTAMP NULL,
+  `order_discount` FLOAT NULL,
+  `submited_at` TIMESTAMP NULL,
+  `preparation_status` VARCHAR(255) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_order_delivery1_idx` (`delivery_id` ASC),
+  UNIQUE INDEX `orderId_UNIQUE` (`id` ASC),
+  INDEX `fk_order_customer1_idx` (`customer_id` ASC),
+  INDEX `fk_order_restaurant1_idx` (`restaurant_id` ASC),
   CONSTRAINT `fk_order_delivery1`
-    FOREIGN KEY (`deliveryId`)
-    REFERENCES `scrumptious`.`delivery` (`deliveryId`)
+    FOREIGN KEY (`delivery_id`)
+    REFERENCES `delivery` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_order_customer1`
-    FOREIGN KEY (`customerId`)
-    REFERENCES `scrumptious`.`customer` (`customerId`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
-ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `scrumptious`.`menuItem_order`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`menuItem_order` (
-  `menuItemId` BINARY(16) NOT NULL,
-  `orderId` BINARY(16) NOT NULL,
-  `quantity` INT NOT NULL DEFAULT 1,
-  PRIMARY KEY (`menuItemId`, `orderId`),
-  INDEX `fk_consumableItem_has_order_order1_idx` (`orderId` ASC),
-  INDEX `fk_consumableItem_has_order_consumableItem1_idx` (`menuItemId` ASC),
-  CONSTRAINT `fk_consumableItem_has_order_consumableItem1`
-    FOREIGN KEY (`menuItemId`)
-    REFERENCES `scrumptious`.`menuItem` (`menuItemId`)
+    FOREIGN KEY (`customer_id`)
+    REFERENCES `customer` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
-  CONSTRAINT `fk_consumableItem_has_order_order1`
-    FOREIGN KEY (`orderId`)
-    REFERENCES `scrumptious`.`order` (`orderId`)
+  CONSTRAINT `fk_order_restaurant1`
+    FOREIGN KEY (`restaurant_id`)
+    REFERENCES `restaurant` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`order_restaurant`
+-- Table `tag`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`order_restaurant` (
-  `orderId` BINARY(16) NOT NULL,
-  `restaurantId` BINARY(16) NOT NULL,
-  `orderStatus` VARCHAR(32) NULL,
-  PRIMARY KEY (`orderId`, `restaurantId`),
-  INDEX `fk_order_has_restaurant_restaurant1_idx` (`restaurantId` ASC),
-  INDEX `fk_order_has_restaurant_order1_idx` (`orderId` ASC),
-  CONSTRAINT `fk_order_has_restaurant_order1`
-    FOREIGN KEY (`orderId`)
-    REFERENCES `scrumptious`.`order` (`orderId`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
-  CONSTRAINT `fk_order_has_restaurant_restaurant1`
-    FOREIGN KEY (`restaurantId`)
-    REFERENCES `scrumptious`.`restaurant` (`restaurantId`)
+DROP TABLE IF EXISTS `tag` ;
+
+CREATE TABLE IF NOT EXISTS `tag` (
+  `id` BIGINT(8) NOT NULL AUTO_INCREMENT,
+  `type` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `tagId_UNIQUE` (`id` ASC))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `payment`
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `payment` ;
+
+CREATE TABLE IF NOT EXISTS `payment` (
+  `id` BIGINT(8) NOT NULL AUTO_INCREMENT,
+  `customer_id` BINARY(16) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `stripe_id` VARCHAR(255) NULL,
+  `refunded` TINYINT NULL,
+  `payment_status` VARCHAR(255) NULL,
+  INDEX `fk_payment_customer1_idx` (`customer_id` ASC),
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `id_UNIQUE` (`id` ASC),
+  CONSTRAINT `fk_payment_customer1`
+    FOREIGN KEY (`customer_id`)
+    REFERENCES `customer` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`customer_address`
+-- Table `customer_address`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`customer_address` (
-  `customerId` BINARY(16) NOT NULL,
-  `addressId` BINARY(16) NOT NULL,
-  PRIMARY KEY (`customerId`, `addressId`),
-  INDEX `fk_customer_has_address_address1_idx` (`addressId` ASC),
-  INDEX `fk_customer_has_address_customer1_idx` (`customerId` ASC),
+DROP TABLE IF EXISTS `customer_address` ;
+
+CREATE TABLE IF NOT EXISTS `customer_address` (
+  `customer_id` BINARY(16) NOT NULL,
+  `address_id` BIGINT(8) NOT NULL,
+  PRIMARY KEY (`customer_id`, `address_id`),
+  INDEX `fk_customer_has_address_address1_idx` (`address_id` ASC),
+  INDEX `fk_customer_has_address_customer1_idx` (`customer_id` ASC),
   CONSTRAINT `fk_customer_has_address_customer1`
-    FOREIGN KEY (`customerId`)
-    REFERENCES `scrumptious`.`customer` (`customerId`)
+    FOREIGN KEY (`customer_id`)
+    REFERENCES `customer` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_customer_has_address_address1`
-    FOREIGN KEY (`addressId`)
-    REFERENCES `scrumptious`.`address` (`addressId`)
+    FOREIGN KEY (`address_id`)
+    REFERENCES `address` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`tag`
+-- Table `admin`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`tag` (
-  `tagId` BINARY(16) NOT NULL,
-  `tagType` VARCHAR(45) NOT NULL,
-  PRIMARY KEY (`tagId`),
-  UNIQUE INDEX `tagId_UNIQUE` (`tagId` ASC))
+DROP TABLE IF EXISTS `admin` ;
+
+CREATE TABLE IF NOT EXISTS `admin` (
+  `id` BINARY(16) NOT NULL,
+  `first_name` VARCHAR(255) NULL,
+  `last_name` VARCHAR(255) NULL,
+  `phone` VARCHAR(255) NULL,
+  `email` VARCHAR(255) NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `customerId_UNIQUE` (`id` ASC),
+  CONSTRAINT `fk_customer_user100`
+    FOREIGN KEY (`id`)
+    REFERENCES `user` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`tag_menuItem`
+-- Table `menuitem_tag`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`tag_menuItem` (
-  `tagId` BINARY(16) NOT NULL,
-  `menuItemId` BINARY(16) NOT NULL,
-  PRIMARY KEY (`tagId`, `menuItemId`),
-  INDEX `fk_tag_has_consumableItem_consumableItem1_idx` (`menuItemId` ASC),
-  INDEX `fk_tag_has_consumableItem_tag1_idx` (`tagId` ASC),
-  CONSTRAINT `fk_tag_has_consumableItem_tag1`
-    FOREIGN KEY (`tagId`)
-    REFERENCES `scrumptious`.`tag` (`tagId`)
+DROP TABLE IF EXISTS `menuitem_tag` ;
+
+CREATE TABLE IF NOT EXISTS `menuitem_tag` (
+  `menuitem_id` BIGINT(8) NOT NULL,
+  `tag_id` BIGINT(8) NOT NULL,
+  PRIMARY KEY (`menuitem_id`, `tag_id`),
+  INDEX `fk_menuitem_has_tag_tag1_idx` (`tag_id` ASC),
+  INDEX `fk_menuitem_has_tag_menuitem1_idx` (`menuitem_id` ASC),
+  CONSTRAINT `fk_menuitem_has_tag_menuitem1`
+    FOREIGN KEY (`menuitem_id`)
+    REFERENCES `menuitem` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
-  CONSTRAINT `fk_tag_has_consumableItem_consumableItem1`
-    FOREIGN KEY (`menuItemId`)
-    REFERENCES `scrumptious`.`menuItem` (`menuItemId`)
+  CONSTRAINT `fk_menuitem_has_tag_tag1`
+    FOREIGN KEY (`tag_id`)
+    REFERENCES `tag` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `scrumptious`.`orderPayment`
+-- Table `menuitem_category`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `scrumptious`.`orderPayment` (
-  `orderId` BINARY(16) NOT NULL,
-  `name` VARCHAR(45) NOT NULL,
-  `stripeId` VARCHAR(45) NULL,
-  `refunded` TINYINT NULL,
-  INDEX `fk_orderPayment_order1_idx` (`orderId` ASC),
-  PRIMARY KEY (`orderId`),
-  UNIQUE INDEX `order_orderId_UNIQUE` (`orderId` ASC),
-  CONSTRAINT `fk_orderPayment_order1`
-    FOREIGN KEY (`orderId`)
-    REFERENCES `scrumptious`.`order` (`orderId`)
+DROP TABLE IF EXISTS `menuitem_category` ;
+
+CREATE TABLE IF NOT EXISTS `menuitem_category` (
+  `menuitem_id` BIGINT(8) NOT NULL,
+  `category_id` BIGINT(8) NOT NULL,
+  PRIMARY KEY (`menuitem_id`, `category_id`),
+  INDEX `fk_menuitem_has_category_category1_idx` (`category_id` ASC),
+  INDEX `fk_menuitem_has_category_menuitem1_idx` (`menuitem_id` ASC),
+  CONSTRAINT `fk_menuitem_has_category_menuitem1`
+    FOREIGN KEY (`menuitem_id`)
+    REFERENCES `menuitem` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_menuitem_has_category_category1`
+    FOREIGN KEY (`category_id`)
+    REFERENCES `category` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `menuitem_order`
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `menuitem_order` ;
+
+CREATE TABLE IF NOT EXISTS `menuitem_order` (
+  `menuitem_id` BIGINT(8) NOT NULL,
+  `order_id` BIGINT(8) NOT NULL,
+  `quantity` BIGINT(8) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`menuitem_id`, `order_id`),
+  INDEX `fk_menuitem_has_order_order1_idx` (`order_id` ASC),
+  INDEX `fk_menuitem_has_order_menuitem1_idx` (`menuitem_id` ASC),
+  CONSTRAINT `fk_menuitem_has_order_menuitem1`
+    FOREIGN KEY (`menuitem_id`)
+    REFERENCES `menuitem` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_menuitem_has_order_order1`
+    FOREIGN KEY (`order_id`)
+    REFERENCES `order` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `restaurant_cuisine`
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `restaurant_cuisine` ;
+
+CREATE TABLE IF NOT EXISTS `restaurant_cuisine` (
+  `restaurant_id` BIGINT(8) NOT NULL,
+  `cuisine_id` BIGINT(8) NOT NULL,
+  PRIMARY KEY (`restaurant_id`, `cuisine_id`),
+  INDEX `fk_restaurant_has_cuisine_cuisine1_idx` (`cuisine_id` ASC),
+  INDEX `fk_restaurant_has_cuisine_restaurant1_idx` (`restaurant_id` ASC),
+  CONSTRAINT `fk_restaurant_has_cuisine_restaurant1`
+    FOREIGN KEY (`restaurant_id`)
+    REFERENCES `restaurant` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_restaurant_has_cuisine_cuisine1`
+    FOREIGN KEY (`cuisine_id`)
+    REFERENCES `cuisine` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
