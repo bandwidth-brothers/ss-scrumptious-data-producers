@@ -2,13 +2,13 @@ import argparse
 import csv
 import logging as log
 import random
-import string
 
-import pymysql
+from jaydebeapi import Error
 
 from app.db.config import Config
 from app.db.database import Database
 from app.producers.helpers import print_items_and_confirm
+from app.restaurant.model import Restaurant
 
 
 class RestaurantArgParser:
@@ -40,7 +40,7 @@ class RestaurantProducer:
 
         self.names = self.get_restaurant_names_from_file()
 
-        self.restaurant_owners = self.get_all_from("restaurant_owner")
+        self.restaurant_owners = self.get_all_from("owner")
 
         if len(self.restaurant_owners) == 0:
             log.error("No restaurant owners are present in the database!")
@@ -68,7 +68,7 @@ class RestaurantProducer:
                     records.append(row)
                 cursor.close()
                 return records
-        except pymysql.MySQLError as e:
+        except Error as e:
             print(e)
 
     def create_random_address(self):
@@ -82,92 +82,35 @@ class RestaurantProducer:
                 cursor.execute("SELECT LAST_INSERT_ID();")
                 uid = cursor.fetchall()[0][0]
                 cursor.close()
-        except pymysql.MySQLError as e:
+        except Error as e:
             print(e)
         finally:
             return uid
 
     def create_restaurants(self, quantity: int):
         if quantity is None or quantity < 0:
-            restaurant = Restaurant(self)
-            restaurant.create_random()
+            restaurant = Restaurant()
+            restaurant.create_random(self)
             print(restaurant)
             print("Example output, use the --num option to specify how many should be created")
         else:
             created = []
             for i in range(quantity):
-                restaurant = Restaurant(self)
-                restaurant.create_random()
+                restaurant = Restaurant()
+                restaurant.producer = self
+                restaurant.create_random(self)
                 created.append(restaurant)
+
             answer = print_items_and_confirm(items=created, item_type="restaurants")
+            num_created = 0
             if answer.strip().lower() == "y":
                 for restaurant in created:
-                    restaurant.save()
+                    if restaurant.save(self.database):
+                        num_created += 1
 
-                print(f"Created {quantity} restaurants in the database!")
+                print(f"Created {num_created} restaurants in the database!")
             else:
                 print(f"No items created")
-
-
-class Restaurant:
-
-    def __init__(self,
-                 producer: RestaurantProducer,
-                 restaurantId: bytes = None,
-                 addressId: bytes = None,
-                 restaurantOwnerId: bytes = None,
-                 name: string = None,
-                 rating: float = None,
-                 priceCategory: int = None,
-                 phone: string = None,
-                 isActive: bool = None,
-                 restaurantLogo: string = None
-                 ):
-        self.producer = producer
-        self.restaurantId = restaurantId
-        self.addressId = addressId
-        self.restaurantOwnerId = restaurantOwnerId
-        self.name = name
-        self.rating = rating
-        self.priceCategory = priceCategory
-        self.phone = phone
-        self.isActive = isActive
-        self.restaurantLogo = restaurantLogo
-
-    def create_random(self):
-        self.addressId = self.producer.create_random_address()
-        self.restaurantOwnerId = random.choice(self.producer.restaurant_owners)[0]
-        self.name = random.choice(self.producer.names)
-        self.rating = random.random() * 5
-        self.priceCategory = random.choice((1, 2, 3))
-        self.phone = self.create_phone()
-        self.isActive = random.choice((True, False))
-
-    def create_phone(self):
-        phone = "xxx-xxx-xxxx"
-        output = [x if x != "x" else str(random.randint(1, 9)) for x in phone]
-        return "".join(output)
-
-    def save(self):
-        try:
-            with self.producer.database.conn.cursor() as cursor:
-                sql = "INSERT INTO restaurant (addressId, restaurantOwnerId, name, rating, priceCategory, phone, isActive, restaurantLogo) " \
-                      "VALUES (?,?,?,?,?,?,?,?)"
-                values = (
-                    self.addressId, self.restaurantOwnerId, self.name, self.rating,
-                    self.priceCategory,
-                    self.phone, self.isActive, self.restaurantLogo)
-
-                cursor.execute(sql, values)
-                cursor.close()
-        except pymysql.MySQLError as e:
-            print(e)
-
-    def __str__(self):
-        return f"Address ID: {self.addressId}, " \
-               f"Owner ID: {self.restaurantOwnerId}, Name: {self.name}, " \
-               f"Rating: {self.rating}, Price category: {self.priceCategory}, " \
-               f"Phone: {self.phone}, Is Active: {self.isActive}, Logo: {self.restaurantLogo}"
 
 
 def main():

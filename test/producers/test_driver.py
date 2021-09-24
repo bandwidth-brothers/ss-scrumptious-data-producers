@@ -4,38 +4,46 @@ import pymysql
 
 from app.db.config import Config
 from app.db.database import Database
-from app.producers.driver import Driver, DriverProducer
+from app.driver.driver import Driver, DriverProducer
+from app.producers.users import UsersProducer, UserGenerator, User
+
+user_database_conn = Database(Config())
+user_database_conn.open_connection()
+
+# Setup users needed to run tests
+user_producer = UsersProducer(user_database_conn)
+for i in range(10):
+    user = UserGenerator.generate_user(role=User.Role.DRIVER)
+    user_producer.save_user(user)
 
 database = Database(Config())
 database.open_connection()
-producer = DriverProducer(database, "../../app/data/first_names.txt", "../../app/data/last_names.txt")
+producer = DriverProducer(database, "./app/data/first_names.txt", "./app/data/last_names.txt")
 
 
 def test_driver_properties():
-    driverId = uuid.uuid4().bytes
-    userId = uuid.uuid4().bytes
-    locationId = uuid.uuid4().bytes
-    firstName = "Kyle"
-    lastName = "Power"
+    id = uuid.uuid4().bytes
+    address_id = uuid.uuid4().bytes
+    first_name = "Kyle"
+    last_name = "Power"
     phone = "555-506-2967"
     dob = "10/15/96"
-    licenseNum = "494586"
+    license_num = "494586"
     rating = 2.456
 
-    driver = Driver(producer, driverId, userId, locationId, firstName, lastName, phone, dob, licenseNum, rating)
-    assert driver.driverId == driverId
-    assert driver.userId == userId
-    assert driver.locationId == locationId
-    assert driver.firstName == firstName
-    assert driver.lastName == lastName
+    driver = Driver(id, address_id, first_name, last_name, phone, dob, license_num, rating)
+    assert driver.id == id
+    assert driver.address_id == address_id
+    assert driver.first_name == first_name
+    assert driver.last_name == last_name
     assert driver.phone == phone
     assert driver.dob == dob
-    assert driver.licenseNum == licenseNum
+    assert driver.license_num == license_num
     assert driver.rating == rating
 
 
 def test_get_items_from_file():
-    data = producer.get_items_from_file("../../app/data/first_names.txt")
+    data = producer.get_items_from_file("./app/data/first_names.txt")
     assert isinstance(data, list)
 
 
@@ -54,7 +62,7 @@ def test_create_drivers():
         try:
             with database.conn.cursor() as cursor:
                 records = []
-                cursor.execute("SELECT driverId FROM scrumptious.driver")
+                cursor.execute("SELECT id FROM scrumptious.driver")
                 result = cursor.fetchall()
                 for row in result:
                     records.append(row)
@@ -67,31 +75,33 @@ def test_create_drivers():
 
     create_quantity = 10
     start_quantity = len(get_driver_ids())
-    producer.create_drivers(create_quantity)
+    for _ in range(create_quantity):
+        driver = Driver()
+        driver.create_random(producer)
+        driver.save(database)
+
     end_quantity = len(get_driver_ids())
 
     assert start_quantity + create_quantity == end_quantity
 
 
 def test_create_random():
-    driver = Driver(producer)
-    driver.create_random()
-    assert isinstance(driver.driverId, bytes)
-    assert isinstance(driver.userId, bytes)
-    assert isinstance(driver.locationId, bytes)
-    assert isinstance(driver.firstName, str)
-    assert isinstance(driver.lastName, str)
+    driver = Driver()
+    driver.create_random(producer)
+    assert isinstance(driver.address_id, int)
+    assert isinstance(driver.first_name, str)
+    assert isinstance(driver.last_name, str)
     assert isinstance(driver.phone, str)
     assert isinstance(driver.dob, str)
-    assert isinstance(driver.licenseNum, str)
+    assert isinstance(driver.license_num, str)
     assert isinstance(driver.rating, float)
 
 
 def test_create_dob():
-    driver = Driver(producer)
+    driver = Driver()
     assert isinstance(driver.create_dob(), str)
 
 
 def test_create_phone():
-    driver = Driver(producer)
+    driver = Driver()
     assert isinstance(driver.create_phone(), str)

@@ -2,11 +2,12 @@ import pymysql
 
 from app.db.config import Config
 from app.db.database import Database
-from app.producers.restaurant import RestaurantProducer
+from app.restaurant.model import Restaurant
+from app.restaurant.producer import RestaurantProducer
 
 database = Database(Config())
 database.open_connection()
-producer = RestaurantProducer(database, "../../app/data/addresses.csv", "../../app/data/restaurant-names.txt")
+producer = RestaurantProducer(database, "./app/data/addresses.csv", "./app/data/restaurant-names.txt")
 
 
 def test_get_addresses_from_csv():
@@ -29,7 +30,7 @@ def test_create_random_address():
         try:
             with database.conn.cursor() as cursor:
                 records = []
-                cursor.execute("SELECT addressId FROM address")
+                cursor.execute("SELECT id FROM address")
                 result = cursor.fetchall()
                 for row in result:
                     records.append(row)
@@ -52,7 +53,7 @@ def test_create_restaurants():
         try:
             with database.conn.cursor() as cursor:
                 records = []
-                cursor.execute("SELECT restaurantId FROM restaurant")
+                cursor.execute("SELECT id FROM restaurant")
                 result = cursor.fetchall()
                 for row in result:
                     records.append(row)
@@ -66,6 +67,10 @@ def test_create_restaurants():
 
     create_quantity = 10
     start_quantity = len(get_restaurant_ids())
-    producer.create_restaurants(create_quantity)
+    for _ in range(create_quantity):
+        restaurant = Restaurant()
+        restaurant.create_random(producer)
+        restaurant.save(database)
+
     end_quantity = len(get_restaurant_ids())
     assert end_quantity - start_quantity == create_quantity

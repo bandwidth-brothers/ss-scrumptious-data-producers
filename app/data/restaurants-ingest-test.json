@@ -1,0 +1,28 @@
+[
+  {
+    "city": "Phoenix",
+    "street": "Ap #462-9254 Enim Road",
+    "state": "AZ",
+    "zip": "85084",
+    "owner_id": 1,
+    "name": "My Restur",
+    "rating": 5,
+    "price_category": 1,
+    "phone": "407-455-4527",
+    "is_active": 1,
+    "picture": "https://logo.com"
+  },
+  {
+    "city": "Rock Springs",
+    "street": "773-2774 Nam Avenue",
+    "state": "WY",
+    "zip": "56413",
+    "owner_id": 1,
+    "name": "Other Rest",
+    "rating": 3,
+    "price_category": 1,
+    "phone": "555-555-5555",
+    "is_active": 0,
+    "picture": "https://logo.com"
+  }
+]

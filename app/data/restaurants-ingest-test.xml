@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<restaurants>
+    <restaurant>
+        <city>Phoenix</city>
+        <street>Ap #462-9254 Enim Road</street>
+        <state>AZ</state>
+        <zip>85084</zip>
+        <owner_id>1</owner_id>
+        <name>My Restur</name>
+        <rating>3.6</rating>
+        <price_category>1</price_category>
+        <phone>407-455-4527</phone>
+        <is_active>1</is_active>
+        <picture>https://logo.com</picture>
+    </restaurant>
+    <restaurant>
+        <city>Rock Springs</city>
+        <street>773-2774 Nam Avenue</street>
+        <state>WY</state>
+        <zip>56413</zip>
+        <owner_id>1</owner_id>
+        <name>Other Rest</name>
+        <rating>3</rating>
+        <price_category>1</price_category>
+        <phone>555-555-5555</phone>
+        <is_active>0</is_active>
+        <picture>https://logo.com</picture>
+    </restaurant>
+</restaurants>
