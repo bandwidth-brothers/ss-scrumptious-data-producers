@@ -1,0 +1,188 @@
+[
+  {
+    "driverId": "D3A6E60BFECF4C4393F9EEFBC6E8D48C",
+    "type": "arrived",
+    "directions": [
+      {
+        "distance": 18,
+        "duration": 5,
+        "end_location": {
+          "lat": 38.7768512,
+          "lng": -77.1246314
+        },
+        "start_location": {
+          "lat": 38.7767523,
+          "lng": -77.12479549999999
+        },
+        "instructions": "Head <b>northeast</b> on <b>Waldo Dr</b> toward <b>Waldo Ct</b>",
+        "maneuver": "None"
+      }
+    ]
+  },
+  {
+    "driverId": "81BB3F393A184BB79FA12DA0A3736406",
+    "type": "directions",
+    "directions": [
+      {
+        "distance": 185,
+        "duration": 27,
+        "end_location": {
+          "lat": 38.7734022,
+          "lng": -77.1329394
+        },
+        "start_location": {
+          "lat": 38.7722889,
+          "lng": -77.131351
+        },
+        "instructions": "Head <b>northwest</b> on <b>S Van Dorn St</b> toward <b>Tower Hill Cir</b>",
+        "maneuver": "None"
+      },
+      {
+        "distance": 279,
+        "duration": 50,
+        "end_location": {
+          "lat": 38.771823,
+          "lng": -77.135221
+        },
+        "start_location": {
+          "lat": 38.7734022,
+          "lng": -77.1329394
+        },
+        "instructions": "Turn <b>left</b> onto <b>Kingstowne Blvd</b>",
+        "maneuver": "turn-left"
+      },
+      {
+        "distance": 65,
+        "duration": 16,
+        "end_location": {
+          "lat": 38.7722911,
+          "lng": -77.1356746
+        },
+        "start_location": {
+          "lat": 38.771823,
+          "lng": -77.135221
+        },
+        "instructions": "Turn <b>right</b> onto <b>Kingstowne Center</b>",
+        "maneuver": "turn-right"
+      },
+      {
+        "distance": 75,
+        "duration": 16,
+        "end_location": {
+          "lat": 38.7729236,
+          "lng": -77.1359658
+        },
+        "start_location": {
+          "lat": 38.7722911,
+          "lng": -77.1356746
+        },
+        "instructions": "Continue straight",
+        "maneuver": "straight"
+      },
+      {
+        "distance": 74,
+        "duration": 25,
+        "end_location": {
+          "lat": 38.7731293,
+          "lng": -77.13515559999999
+        },
+        "start_location": {
+          "lat": 38.7729236,
+          "lng": -77.1359658
+        },
+        "instructions": "Turn <b>right</b> toward <b>Kingstowne Center</b>",
+        "maneuver": "turn-right"
+      },
+      {
+        "distance": 161,
+        "duration": 69,
+        "end_location": {
+          "lat": 38.7745601,
+          "lng": -77.13544259999999
+        },
+        "start_location": {
+          "lat": 38.7731293,
+          "lng": -77.13515559999999
+        },
+        "instructions": "Turn <b>left</b> onto <b>Kingstowne Center</b>",
+        "maneuver": "turn-left"
+      },
+      {
+        "distance": 115,
+        "duration": 26,
+        "end_location": {
+          "lat": 38.7740788,
+          "lng": -77.1365593
+        },
+        "start_location": {
+          "lat": 38.7745601,
+          "lng": -77.13544259999999
+        },
+        "instructions": "Turn <b>left</b><div style=\"font-size:0.9em\">Destination will be on the left</div>",
+        "maneuver": "turn-left"
+      }
+    ]
+  },
+  {
+    "driverId": "81BB3F393A184BB79FA12DA0A3736406",
+    "type": "directions",
+    "directions": [
+      {
+        "distance": 662,
+        "duration": 111,
+        "end_location": {
+          "lat": 38.775413,
+          "lng": -77.12695599999999
+        },
+        "start_location": {
+          "lat": 38.7722889,
+          "lng": -77.131351
+        },
+        "instructions": "Head <b>southwest</b> on <b>Greendale Village Dr</b> toward <b>S Van Dorn St</b>",
+        "maneuver": "None"
+      },
+      {
+        "distance": 235,
+        "duration": 33,
+        "end_location": {
+          "lat": 38.77689489999999,
+          "lng": -77.1250884
+        },
+        "start_location": {
+          "lat": 38.775413,
+          "lng": -77.12695599999999
+        },
+        "instructions": "Turn <b>right</b> onto <b>Horgan Ct</b>",
+        "maneuver": "turn-right"
+      },
+      {
+        "distance": 30,
+        "duration": 12,
+        "end_location": {
+          "lat": 38.7767523,
+          "lng": -77.12479549999999
+        },
+        "start_location": {
+          "lat": 38.77689489999999,
+          "lng": -77.1250884
+        },
+        "instructions": "Turn <b>right</b> onto <b>Kiernan Ct</b>",
+        "maneuver": "turn-right"
+      },
+      {
+        "distance": 18,
+        "duration": 9,
+        "end_location": {
+          "lat": 38.7768512,
+          "lng": -77.1246314
+        },
+        "start_location": {
+          "lat": 38.7767523,
+          "lng": -77.12479549999999
+        },
+        "instructions": "Turn <b>left</b> onto <b>Waldo Dr</b><div style=\"font-size:0.9em\">Destination will be on the right</div>",
+        "maneuver": "turn-left"
+      }
+    ]
+  }
+]

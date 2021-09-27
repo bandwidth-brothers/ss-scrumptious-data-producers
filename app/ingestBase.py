@@ -106,7 +106,7 @@ class Ingest:
 
     def handle_json(self):
         parsed_data = []
-        print(self.path)
+
         with open(self.path) as json_file:
             data = json.load(json_file)
             for entry in data:
@@ -150,7 +150,6 @@ class Ingest:
         item_data = []
         for entry in data:
             data_dict = {}
-            # print(key.tag, key.attrib, key.text)
             for key in entry:
                 data_dict[key.tag] = key.text
 
