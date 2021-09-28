@@ -8,11 +8,11 @@ def get_ids(db: Database, query: str):
 
 
 def get_user_ids(db: Database, user_role):
-    return get_ids(db, f"SELECT userId FROM user WHERE userRole = '{user_role}'")
+    return get_ids(db, f"SELECT HEX(userId) FROM user WHERE userRole = '{user_role}'")
 
 
 def get_driver_ids(db: Database):
-    return get_ids(db, "SELECT driverId FROM driver")
+    return get_ids(db, "SELECT HEX(driverId) FROM driver")
 
 
 def get_address_ids(db: Database):
