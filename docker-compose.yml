@@ -2,7 +2,7 @@ version: '3.8'
 services:
   mysqlserver:
     build:
-      context: db/mysql
+      context: ./mysql
     ports:
       - '3306:3306'
     environment:

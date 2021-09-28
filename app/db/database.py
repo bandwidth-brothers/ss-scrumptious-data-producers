@@ -3,27 +3,26 @@ import sys
 import pymysql
 import logging as log
 
-import jaydebeapi
-
 
 class Database:
 
     def __init__(self, config):
-        self.db_url = config.db_url
-        self.db_user = config.db_user
-        self.db_password = config.db_password
-        self.db_driver = config.db_driver
-        self.db_jarfile = config.db_jarfile
+        self.host = config.db_host
+        self.username = config.db_user
+        self.password = config.db_password
+        self.port = config.db_port
+        self.dbname = config.db_name
         self.conn = None
 
     def open_connection(self):
         try:
             if self.conn is None:
-                self.conn = jaydebeapi.connect(
-                    self.db_driver,
-                    self.db_url,
-                    {'user': self.db_user, 'password': self.db_password},
-                    self.db_jarfile
+                self.conn = pymysql.connect(
+                    host=self.host,
+                    user=self.username,
+                    passwd=self.password,
+                    db=self.dbname,
+                    connect_timeout=5
                 )
         except pymysql.MySQLError as e:
             print('Could not connect to the database. '
