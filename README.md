@@ -140,8 +140,8 @@ If there are none, the [`testdata.py`](#order-dependency-data) program can be
 used to create some dummy data.
 
 ```shell
-(.venv) $ python -m app.produders.items --help
-(.venv) $ python -m app.produders.items --count 10 --active 5
+(.venv) $ python -m app.produders.orders --help
+(.venv) $ python -m app.produders.orders --count 10 --active 5
 ```
 
 #### Order dependency data

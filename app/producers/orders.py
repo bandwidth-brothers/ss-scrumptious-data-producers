@@ -21,41 +21,41 @@ A comma separated values (CSV) file with a dataset may be provided
 as an argument using the --csv option. When this argument is provided,
 others will be ignored.
 
-Randomly generated items will be created if the --csv option is not
+Randomly generated orders will be created if the --csv option is not
 used and the --count option is present. There must be existing customers
 in the database. The program will exit if there are none.
 
 examples:
     
-    python -m app.producers.items --csv <path-to-csv-file>
-    python -m app.producers.items --count 10 --active 5""")
+    python -m app.producers.orders --csv <path-to-csv-file>
+    python -m app.producers.orders --count 10 --active 5""")
         self.parser.add_argument('-f', '--csv', type=str, help="""a csv file with order data.
 File should be in the format (no header):
 orderId,customerId,deliveryId,isActive,confirmationCode""")
-        self.parser.add_argument('--count', type=int, help='number of random items to generate.')
+        self.parser.add_argument('--count', type=int, help='number of random orders to generate.')
         self.args = self.parser.parse_args(args)
 
 
 class Order:
-    def __init__(self, order_id, customer_id: str, restaurant_id: int, delivery_id: int, confirmation_code: str):
+    def __init__(self, order_id, cust_id: str, restaurant_id: int, deliv_id: int, conf_code: str):
         """
         Constructor for creating an Order.
 
         :param order_id: int id of order
-        :param customer_id: Hex string of UUID
+        :param cust_id: Hex string of UUID
         :param restaurant_id: int id of restaurant
-        :param delivery_id: int id of delivery
-        :param confirmation_code: string confirmation code
+        :param deliv_id: int id of delivery
+        :param conf_code: string confirmation code
         """
-        self.id = order_id
-        self.customer_id = customer_id
+        self.order_id = order_id
+        self.cust_id = cust_id
         self.restaurant_id = restaurant_id
-        self.delivery_id = delivery_id
-        self.confirmation_code = confirmation_code
+        self.deliv_id = deliv_id
+        self.conf_code = conf_code
 
     def __str__(self):
-        return f"orderId: {self.id}, custId: {self.customer_id}, restaurantId: {self.restaurant_id}, " \
-               f"delivId: {self.delivery_id}, confCode: {self.confirmation_code}"
+        return f"orderId: {self.order_id}, custId: {self.cust_id}, restaurantId: {self.restaurant_id}, " \
+               f"delivId: {self.deliv_id}, confCode: {self.conf_code}"
 
 
 class OrderGenerator:
@@ -70,8 +70,8 @@ class OrderGenerator:
         :return: the Order
         """
         conf_code = str(uuid.uuid4()).replace('-', '')[0:10]
-        return Order(order_id=None, customer_id=cust_id, restaurant_id=restaurant_id, delivery_id=deliv_id,
-                     confirmation_code=conf_code)
+        return Order(order_id=None, cust_id=cust_id, restaurant_id=restaurant_id, deliv_id=deliv_id,
+                     conf_code=conf_code)
 
 
 class OrderProducer:
@@ -87,17 +87,17 @@ class OrderProducer:
         try:
             self.db.open_connection()
             with self.db.conn.cursor() as cursor:
-                if order.id is None:
+                if order.order_id is None:
                     cursor.execute(
                         "INSERT INTO `order` (customer_id,restaurant_id,delivery_id,confirmation_code) "
                         "VALUES (UNHEX(?), ?, ?, ?)",
-                        (order.customer_id, order.restaurant_id, order.delivery_id, order.confirmation_code))
+                        (order.cust_id, order.restaurant_id, order.deliv_id,  order.conf_code))
                 else:
                     cursor.execute(
                         "INSERT INTO `order` "
                         "(id,customer_id,restaurant_id,delivery_id,confirmation_code) "
                         "VALUES (?, UNHEX(?), ?, ?, ?)",
-                        (order.id, order.customer_id, order.restaurant_id, order.delivery_id, order.confirmation_code))
+                        (order.order_id, order.cust_id, order.restaurant_id, order.deliv_id, order.conf_code))
         except pymysql.MySQLError as ex:
             print(f"Problem occurred saving order: {order}")
             log.error(ex)
@@ -109,11 +109,11 @@ class OrderProducer:
 
     def produce_random(self, num_orders: int, cust_ids: list, deliv_ids: list, rest_ids: list):
         """
-        Create random items. Customer ids will be chosen randomly to create items.
-        By default, items will be created as not active.
+        Create random orders. Customer ids will be chosen randomly to create orders.
+        By default, orders will be created as not active.
 
-        :param num_orders: the number of items to create
-        :param cust_ids: the customer ids to use for items (not empty)
+        :param num_orders: the number of orders to create
+        :param cust_ids: the customer ids to use for orders (not empty)
         :param deliv_ids: the driver ids to use for users (not empty)
         :param rest_ids: a list of lists of restaurant and address ids.
         """
@@ -128,19 +128,19 @@ class OrderProducer:
             order = OrderGenerator.generate_order(cust_id=cust_id, restaurant_id=rest_id, deliv_id=deliv_id)
             orders.append(order)
 
-        answer = print_items_and_confirm(items=orders, item_type='items')
+        answer = print_items_and_confirm(items=orders, item_type='orders')
         if answer.strip().lower() == 'n':
             print('No records will be inserted.')
             sys.exit(0)
         else:
             for order in orders:
                 self.save_order(order)
-            print(f"{len(orders)} items created successfully.")
+            print(f"{len(orders)} orders created successfully.")
 
     def produce_from_csv(self, csv_path: str):
         """
         Create users from a csv file. The csv file should be in the format (no header)
-        id,customer_id,restaurant_id,delivery_id,confirmation_code
+        order_id,customer_id,restaurant_id,delivery_id,confirmation_code
 
         :param csv_path: the path to the csv file
         """
@@ -168,8 +168,8 @@ class OrderProducer:
                     print(f"Delivery with id {deliv_id} does not exist. Order will not be created.")
                     continue
                 conf_code = row[4]
-                order = Order(order_id=order_id, customer_id=cust_id, restaurant_id=restaurant_id, delivery_id=deliv_id,
-                              confirmation_code=conf_code)
+                order = Order(order_id=order_id, cust_id=cust_id, restaurant_id=restaurant_id, deliv_id=deliv_id,
+                              conf_code=conf_code)
                 self.save_order(order)
 
 

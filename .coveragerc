@@ -1,7 +1,0 @@
-[run]
-omit =
-    */site-packages/*
-    */distutils/*
-    test/*
-    */__init__.py
-    app/producers/*

@@ -15,7 +15,7 @@ from app.producers.orders import OrdersArgParser
 from app.producers.orders import get_delivery_ids
 from app.producers.orders import get_customer_ids
 from app.producers.orders import get_restaurant_ids
-from test.orders.testdata import make_test_data
+from test.helpers.testdata import make_test_data
 
 
 def test_order_arg_parser():
@@ -32,19 +32,19 @@ def test_order_properties():
     rest_id = 3
     conf_code = 'abc'
 
-    order = Order(order_id=order_id, customer_id=cust_id, restaurant_id=rest_id, delivery_id=deliv_id, confirmation_code=conf_code)
-    assert order.id == order_id
-    assert order.customer_id == cust_id
-    assert order.delivery_id == deliv_id
+    order = Order(order_id=order_id, cust_id=cust_id,  restaurant_id=rest_id, deliv_id=deliv_id, conf_code=conf_code)
+    assert order.order_id == order_id
+    assert order.cust_id == cust_id
+    assert order.deliv_id == deliv_id
     assert order.restaurant_id == rest_id
-    assert order.confirmation_code == conf_code
+    assert order.conf_code == conf_code
 
     order = Order(order_id, cust_id, rest_id, deliv_id, conf_code)
-    assert order.id == order_id
-    assert order.customer_id == cust_id
-    assert order.delivery_id == deliv_id
+    assert order.order_id == order_id
+    assert order.cust_id == cust_id
+    assert order.deliv_id == deliv_id
     assert order.restaurant_id == rest_id
-    assert order.confirmation_code == conf_code
+    assert order.conf_code == conf_code
 
 
 def test_order_generator_generate_order():
@@ -53,11 +53,11 @@ def test_order_generator_generate_order():
     rest_id = 2
 
     order = OrderGenerator.generate_order(cust_id=cust_id, restaurant_id=rest_id,deliv_id=deliv_id)
-    assert order.id is None
-    assert order.customer_id == cust_id
-    assert order.delivery_id == deliv_id
+    assert order.order_id is None
+    assert order.cust_id == cust_id
+    assert order.deliv_id == deliv_id
     assert order.restaurant_id == rest_id
-    assert isinstance(order.confirmation_code, str)
+    assert isinstance(order.conf_code, str)
 
 
 db = Database(Config())
@@ -91,10 +91,10 @@ def test_order_producer_save_order():
     db.conn = None
 
     assert len(results) == 1
-    assert order.customer_id == results[0][1].lower()
-    assert order.delivery_id == results[0][2]
+    assert order.cust_id == results[0][1].lower()
+    assert order.deliv_id == results[0][2]
     assert order.restaurant_id == results[0][3]
-    assert order.confirmation_code == results[0][4]
+    assert order.conf_code == results[0][4]
 
     _delete_orders(db)
     make_test_data(['--clear'])
@@ -163,8 +163,8 @@ def _create_csv_file(csv_file: str, count: int, id_start=1, bad_cust_id=False, b
             deliv_id = 99999999 if bad_deliv_id else random.choice(deliv_ids)
             rest_id = 99999999 if bad_rest_ids else random.choice(rest_ids)
             order = OrderGenerator.generate_order(cust_id=cust_id, restaurant_id=rest_id, deliv_id=deliv_id)
-            f.write(f"{order_id},{order.customer_id.lower()},{order.restaurant_id},"
-                    f"{order.delivery_id},{order.confirmation_code}{os.linesep}")
+            f.write(f"{order_id},{order.cust_id.lower()},{order.restaurant_id},"
+                    f"{order.deliv_id},{order.conf_code}{os.linesep}")
 
 
 def _read_csv_file(csv_file: str) -> list[Order]:
@@ -173,15 +173,15 @@ def _read_csv_file(csv_file: str) -> list[Order]:
         for line in f:
             fields = line.strip().split(',')
             order = Order(order_id=int(fields[0]),
-                          customer_id=fields[1],
+                          cust_id=fields[1],
                           restaurant_id=int(fields[2]),
-                          delivery_id=int(fields[3]),
-                          confirmation_code=fields[4])
+                          deliv_id=int(fields[3]),
+                          conf_code=fields[4])
             orders.append(order)
     return orders
 
 
-TEST_CSV_DIR = './tmp/test-items'
+TEST_CSV_DIR = './tmp/test-orders'
 
 
 def test_order_producer_produce_from_csv():
@@ -189,30 +189,33 @@ def test_order_producer_produce_from_csv():
     make_test_data(['--clear'])
     make_test_data(['--all', '2'])
     Path(TEST_CSV_DIR).mkdir(parents=True, exist_ok=True)
-    _create_csv_file(f"{TEST_CSV_DIR}/items-test.csv", count=5)
+    _create_csv_file(f"{TEST_CSV_DIR}/orders-test.csv", count=5)
     producer = OrderProducer(db)
 
     results = db.run_query('SELECT * FROM `order`')
     assert len(results) == 0
 
-    producer.produce_from_csv(f"{TEST_CSV_DIR}/items-test.csv")
+    producer.produce_from_csv(f"{TEST_CSV_DIR}/orders-test.csv")
 
     results = db.run_query('SELECT id,HEX(customer_id),delivery_id,restaurant_id,confirmation_code'
                            ' FROM `order` ORDER BY id')
     assert len(results) == 5
 
-    orders = _read_csv_file(f"{TEST_CSV_DIR}/items-test.csv")
-    orders.sort(key=lambda o: o.id)
+    orders = _read_csv_file(f"{TEST_CSV_DIR}/orders-test.csv")
+    orders.sort(key=lambda o: o.order_id)
     assert len(orders) == 5
+
+    print(results)
+    print(orders)
 
     for i in range(len(orders)):
         result = results[i]
         order = orders[i]
-        assert order.id == result[0]
-        assert order.customer_id == result[1].lower()
-        assert order.delivery_id == result[2]
+        assert order.order_id == result[0]
+        assert order.cust_id == result[1].lower()
+        assert order.deliv_id == result[2]
         assert order.restaurant_id == result[3]
-        assert order.confirmation_code == result[4]
+        assert order.conf_code == result[4]
 
     shutil.rmtree(TEST_CSV_DIR)
     _delete_orders(db)
@@ -223,13 +226,13 @@ def test_order_producer_produce_from_csv_no_cust_id(capsys):
     _delete_orders(db)
     make_test_data(['--all', '2'])
     Path(TEST_CSV_DIR).mkdir(parents=True, exist_ok=True)
-    _create_csv_file(f"{TEST_CSV_DIR}/items-test.csv", count=5, bad_cust_id=True)
+    _create_csv_file(f"{TEST_CSV_DIR}/orders-test.csv", count=5, bad_cust_id=True)
     producer = OrderProducer(db)
 
     results = db.run_query('SELECT * FROM `order`')
     assert len(results) == 0
 
-    producer.produce_from_csv(f"{TEST_CSV_DIR}/items-test.csv")
+    producer.produce_from_csv(f"{TEST_CSV_DIR}/orders-test.csv")
     out_lines = capsys.readouterr().out.split(os.linesep)[0:-1]
     for line in out_lines:
         assert 'Customer with id ' in line
@@ -246,13 +249,13 @@ def test_order_producer_produce_from_csv_no_delivery_id(capsys):
     _delete_orders(db)
     make_test_data(['--all', '2'])
     Path(TEST_CSV_DIR).mkdir(parents=True, exist_ok=True)
-    _create_csv_file(f"{TEST_CSV_DIR}/items-test.csv", count=5, bad_deliv_id=True)
+    _create_csv_file(f"{TEST_CSV_DIR}/orders-test.csv", count=5, bad_deliv_id=True)
     producer = OrderProducer(db)
 
     results = db.run_query('SELECT * FROM `order`')
     assert len(results) == 0
 
-    producer.produce_from_csv(f"{TEST_CSV_DIR}/items-test.csv")
+    producer.produce_from_csv(f"{TEST_CSV_DIR}/orders-test.csv")
 
     out_lines = capsys.readouterr().out.split(os.linesep)[0:-1]
     for line in out_lines:
