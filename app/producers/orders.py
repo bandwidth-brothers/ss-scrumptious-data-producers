@@ -10,6 +10,7 @@ import logging as log
 from argparse import RawTextHelpFormatter
 from app.db.config import Config
 from app.db.database import Database
+from app.producers.helpers import print_items_and_confirm
 
 
 class OrdersArgParser:
@@ -20,45 +21,57 @@ A comma separated values (CSV) file with a dataset may be provided
 as an argument using the --csv option. When this argument is provided,
 others will be ignored.
 
-Randomly generated orders will be created if the --csv option is not
+Randomly generated items will be created if the --csv option is not
 used and the --count option is present. There must be existing customers
 in the database. The program will exit if there are none.
 
 examples:
     
-    python -m app.producers.orders --csv <path-to-csv-file>
-    python -m app.producers.orders --count 10 --active 5""")
+    python -m app.producers.items --csv <path-to-csv-file>
+    python -m app.producers.items --count 10 --active 5""")
         self.parser.add_argument('-f', '--csv', type=str, help="""a csv file with order data.
 File should be in the format (no header):
 orderId,customerId,deliveryId,isActive,confirmationCode""")
-        self.parser.add_argument('--count', type=int, help='number of random orders to generate.')
-        self.parser.add_argument('--active', type=int, help='how many orders to make active. Default is inactive.')
+        self.parser.add_argument('--count', type=int, help='number of random items to generate.')
         self.args = self.parser.parse_args(args)
 
 
 class Order:
-    def __init__(self, order_id, cust_id, deliv_id, is_active, conf_code):
-        self.order_id = order_id
-        self.cust_id = cust_id
-        self.deliv_id = deliv_id
-        self.is_active = is_active
-        self.conf_code = conf_code
+    def __init__(self, order_id, customer_id: str, restaurant_id: int, delivery_id: int, confirmation_code: str):
+        """
+        Constructor for creating an Order.
+
+        :param order_id: int id of order
+        :param customer_id: Hex string of UUID
+        :param restaurant_id: int id of restaurant
+        :param delivery_id: int id of delivery
+        :param confirmation_code: string confirmation code
+        """
+        self.id = order_id
+        self.customer_id = customer_id
+        self.restaurant_id = restaurant_id
+        self.delivery_id = delivery_id
+        self.confirmation_code = confirmation_code
 
     def __str__(self):
-        return f"id: {self.order_id}, custId: {self.cust_id}, delivId: {self.deliv_id}, " \
-                f"isActive: {self.is_active}, confCode: {self.conf_code}"
+        return f"orderId: {self.id}, custId: {self.customer_id}, restaurantId: {self.restaurant_id}, " \
+               f"delivId: {self.delivery_id}, confCode: {self.confirmation_code}"
 
 
 class OrderGenerator:
     @classmethod
-    def generate_delivery_id(cls) -> uuid:
-        return uuid.uuid4()
+    def generate_order(cls, cust_id: str, restaurant_id: int, deliv_id: int) -> Order:
+        """
+        Generate an Order object.
 
-    @classmethod
-    def generate_order(cls, cust_id, deliv_id, is_active) -> Order:
-        order_id = uuid.uuid4()
-        conf_code = str(uuid.uuid4())[0:10]
-        return Order(order_id, cust_id, deliv_id, is_active, conf_code)
+        :param cust_id: a uuid hex string of customer id
+        :param deliv_id: a uuid hex string of deliver id
+        :param restaurant_id: int id of restaurant
+        :return: the Order
+        """
+        conf_code = str(uuid.uuid4()).replace('-', '')[0:10]
+        return Order(order_id=None, customer_id=cust_id, restaurant_id=restaurant_id, delivery_id=deliv_id,
+                     confirmation_code=conf_code)
 
 
 class OrderProducer:
@@ -74,99 +87,111 @@ class OrderProducer:
         try:
             self.db.open_connection()
             with self.db.conn.cursor() as cursor:
-                cursor.execute("INSERT INTO `order` (orderId,customerId,deliveryId,isActive,confirmationCode) "
-                               "VALUES (%s, %s, %s, %s, %s)",
-                               (order.order_id.bytes, order.cust_id, order.deliv_id, order.is_active, order.conf_code))
-                self.db.conn.commit()
+                if order.id is None:
+                    cursor.execute(
+                        "INSERT INTO `order` (customer_id,restaurant_id,delivery_id,confirmation_code) "
+                        "VALUES (UNHEX(?), ?, ?, ?)",
+                        (order.customer_id, order.restaurant_id, order.delivery_id, order.confirmation_code))
+                else:
+                    cursor.execute(
+                        "INSERT INTO `order` "
+                        "(id,customer_id,restaurant_id,delivery_id,confirmation_code) "
+                        "VALUES (?, UNHEX(?), ?, ?, ?)",
+                        (order.id, order.customer_id, order.restaurant_id, order.delivery_id, order.confirmation_code))
         except pymysql.MySQLError as ex:
             print(f"Problem occurred saving order: {order}")
             log.error(ex)
-            sys.exit(1)
+            return
         finally:
             if self.db.conn:
                 self.db.conn = None
                 log.info('Database connection closed.')
 
-    def produce_random(self, num_orders: int, cust_ids: list, deliv_ids: list, num_active: int):
+    def produce_random(self, num_orders: int, cust_ids: list, deliv_ids: list, rest_ids: list):
         """
-        Create random orders. Customer ids will be chosen randomly to create orders.
-        By default, orders will be created as not active.
+        Create random items. Customer ids will be chosen randomly to create items.
+        By default, items will be created as not active.
 
-        :param num_orders: the number of order to create
-        :param cust_ids: the customer ids to use for orders (not empty)
+        :param num_orders: the number of items to create
+        :param cust_ids: the customer ids to use for items (not empty)
         :param deliv_ids: the driver ids to use for users (not empty)
-        :param num_active: number of active orders. Must be smaller than number of orders.
+        :param rest_ids: a list of lists of restaurant and address ids.
         """
-        if len(cust_ids) == 0 or len(deliv_ids) == 0:
+        if len(cust_ids) == 0 or len(deliv_ids) == 0 or rest_ids == 0:
             return
 
         orders = []
         for _ in range(num_orders):
-            is_active = True if num_active > 0 else False
             cust_id = random.choice(cust_ids)
+            rest_id = random.choice(rest_ids)
             deliv_id = random.choice(deliv_ids)
-            order = OrderGenerator.generate_order(cust_id, deliv_id, is_active)
+            order = OrderGenerator.generate_order(cust_id=cust_id, restaurant_id=rest_id, deliv_id=deliv_id)
             orders.append(order)
-            num_active -= 1
 
-        print('The following orders will be created:', end=os.linesep * 2)
-        print_limit = 10
-        for i in range(len(orders)):
-            if i >= print_limit:
-                break
-            print(f"  {orders[i]}")
-        if len(orders) > print_limit:
-            remaining = len(orders) - print_limit
-            print(f"  {remaining} more...")
-        print()
-
-        answer = input('Would you like to insert these into the database [Y/n]? ')
+        answer = print_items_and_confirm(items=orders, item_type='items')
         if answer.strip().lower() == 'n':
             print('No records will be inserted.')
             sys.exit(0)
         else:
             for order in orders:
                 self.save_order(order)
-            print(f"{len(orders)} orders created successfully.")
+            print(f"{len(orders)} items created successfully.")
 
     def produce_from_csv(self, csv_path: str):
         """
         Create users from a csv file. The csv file should be in the format (no header)
-        orderId,customerId,deliveryId,isActive,confirmationCode
+        id,customer_id,restaurant_id,delivery_id,confirmation_code
 
         :param csv_path: the path to the csv file
         """
-        def to_bytes(uuid_str):
-            return uuid.UUID(uuid_str).bytes
-
         with open(csv_path) as file:
             csv_reader = csv.reader(file, delimiter=',')
             cust_ids = get_customer_ids(self.db)
             deliv_ids = get_delivery_ids(self.db)
+            order_ids = get_order_ids(self.db)
+            rest_ids = get_restaurant_ids(self.db)
             for row in csv_reader:
-                cust_id = to_bytes(row[1])
+                order_id = int(row[0])
+                if order_id in order_ids:
+                    print(f"Order with id {order_id} already exists. Order will not be created.")
+                    continue
+                cust_id = row[1].strip().lower()
                 if cust_id not in cust_ids:
-                    print(f"Customer with id {row[1]} does not exist. Order will not be created.")
+                    print(f"Customer with id {cust_id} does not exist. Order will not be created.")
                     continue
-                deliv_id = to_bytes(row[2])
+                restaurant_id = int(row[2])
+                if restaurant_id not in rest_ids:
+                    print(f"Restaurant with id {restaurant_id} does not exist. Order will not be created.")
+                    continue
+                deliv_id = int(row[3])
                 if deliv_id not in deliv_ids:
-                    print(f"Delivery with id {row[2]} does not exist. Order will not be created.")
+                    print(f"Delivery with id {deliv_id} does not exist. Order will not be created.")
                     continue
-                order_id = uuid.UUID(row[0])
-                is_active = bool(row[3])
                 conf_code = row[4]
-                order = Order(order_id, cust_id, deliv_id, is_active, conf_code)
+                order = Order(order_id=order_id, customer_id=cust_id, restaurant_id=restaurant_id, delivery_id=deliv_id,
+                              confirmation_code=conf_code)
                 self.save_order(order)
 
 
-def get_customer_ids(db: Database) -> list:
-    results = db.run_query("SELECT customerId FROM customer")
+def _get_ids(db: Database, sql: str) -> list:
+    results = db.run_query(sql)
     return list(map(lambda result: result[0], results))
+
+
+def get_order_ids(db: Database) -> list:
+    return _get_ids(db, "SELECT id FROM `order`")
+
+
+def get_customer_ids(db: Database) -> list:
+    return list(map(lambda _id: _id.lower(), _get_ids(db, "SELECT HEX(id) FROM customer")))
 
 
 def get_delivery_ids(db: Database) -> list:
-    results = db.run_query("SELECT deliveryId FROM delivery")
-    return list(map(lambda result: result[0], results))
+    return _get_ids(db, "SELECT id FROM delivery")
+
+
+def get_restaurant_ids(db: Database) -> list:
+    return _get_ids(db, "SELECT id FROM restaurant")
 
 
 def main(arguments):
@@ -189,12 +214,8 @@ def main(arguments):
             producer.produce_from_csv(csv_file)
     else:
         count = args.count or 0
-        active = args.active or 0
         if count < 1:
             print("A count greater than 0 must be provided.")
-            return
-        if active > count:
-            print('Active orders must be less than or equal to the total count.')
             return
 
         customer_ids = get_customer_ids(database)
@@ -207,7 +228,12 @@ def main(arguments):
             print('There are no deliveries in the database. Please add some.')
             return
 
-        producer.produce_random(num_orders=count, cust_ids=customer_ids, deliv_ids=delivery_ids, num_active=active)
+        rest_ids = get_restaurant_ids(database)
+        if len(rest_ids) == 0:
+            print('There are no restaurants in the database. Please add some.')
+            return
+
+        producer.produce_random(num_orders=count, cust_ids=customer_ids, deliv_ids=delivery_ids, rest_ids=rest_ids)
 
 
 if __name__ == '__main__':

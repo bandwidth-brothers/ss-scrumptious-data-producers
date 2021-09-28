@@ -11,6 +11,7 @@
     * [Test database connection](#test-database-connection)
     * [Run producers](#run-producers)
     * [Run tests](#run-tests)
+* [Run in Production](#run-in-production)
 
 
 ## Setup Python Virtual Environment
@@ -31,7 +32,7 @@ $
 ```shell
 C:\> python -m venv .venv
 C:\> .\.venv\Scripts\activate.bat
-(.venv) C:\> pip install -r requirements
+(.venv) C:\> pip install -r requirements.txt
 
 # To deactivate the virtual env run
 (.venv) C:\> deactivate
@@ -129,18 +130,76 @@ Example commands to run producer programs
 (.venv) $ python -m app.producers.users --help
 (.venv) $ python -m app.producers.users --custs 10
 (.venv) $ python -m app.producers.users --custs 10 --admins 2 --emps 5
+(.venv) $ python -m app.producers.users --csv <path-to-csv-file>
 ```
+
+#### Order Producer
+
+To create new Orders, there needs to be customers and deliveries in the database.
+If there are none, the [`testdata.py`](#order-dependency-data) program can be
+used to create some dummy data.
+
+```shell
+(.venv) $ python -m app.produders.items --help
+(.venv) $ python -m app.produders.items --count 10 --active 5
+```
+
+#### Order dependency data
+
+To create dependency data for Orders, you can use the `testdata.py` program.
+
+```shell
+(.venv) $ python -m test.testdata --help
+(.venv) $ python -m test.testdata --all 5
+```
+
+The last command will create 5 customers, addresses, deliveries, and drivers.
+It will also create 10 users, 5, customer users and 5 driver users.
 
 ### Run tests
 
-Make sure a clean database is up and running. If using `docker-compose`,
-make sure the volumes are deleted before running `docker-compose up` (see not above)
-
-If the python environment is set up with the virtual environment, pytest should be installed.
+Make sure the [Python virtual environment is set up](#setup-python-virtual-environment).
+Make sure Java runtime is installed and `JAVA_HOME` environment variable is set up.
+Test files should end with `_test.py`. Tests will be run using an H2 database.
 
 ```shell
-(.venv) $ pytest
+$ python3 -m venv .venv
+$ source .venv/bin/activate
+(.venv) $ pip install -r requirements.txt
+(.venv) $ test/runtests.sh
 ```
 
+To use H2, the tests require two environment variables, `ENV_FILE` and `CLASSPATH`.
+
+* `ENV_FILE` - the `.env` file used for environment variables.
+* `CLASSPATH` - the Java classpath to find classes required for the JVM
+
+The [`test/runtests.sh`](/test/runtests.sh) file sets these environment variables. If you are running
+individual tests, instead of the entire test suite, you will need to set these
+
+```shell
+(.venv) $ ENV_FILE='./test/.env.test';CLASSPATH='./db/h2/lib/*' \
+ pytest test/producers/users_test.py::test_user_arg_parser
+```
+
+Test files should end with `_test.py`. Tests will be run using an H2 database.
+
+## Run in Production
+
+* First make sure the [Python virtual environment is set up](#setup-python-virtual-environment).
+* Environment variables should be set up for:
+    * `DATABASE_URL`
+    * `DATABASE_USER`
+    * `DATABASE_PASSWORD`
+
+```shell
+$ export DATABASE_USERNAME='<username>'
+$ export DATABASE_PASSWORD='<password>'
+$ export DATABASE_URL='jdbc:mysql://localhost:3306/scrumptious'
+$ python3 -m venv .venv
+$ source .venv/bin/activate
+(.venv) $ pip install -r requirements.txt
+(.venv) $ python -m app.producers.users --admins 5 --custs 5
+```
 
 [docker]: https://docs.docker.com/get-docker/
