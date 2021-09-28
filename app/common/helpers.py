@@ -1,6 +1,23 @@
 import os
-import distutils
-from distutils import util
+
+from app.users.model import User
+from app.orders.model import Order
+from app.users.formatter import UserFormatter
+from app.orders.formatter import OrderFormatter
+
+
+class Formatters:
+    _MAP = {
+        User: UserFormatter(),
+        Order: OrderFormatter()
+    }
+
+    @staticmethod
+    def for_type(cls):
+        try:
+            return Formatters._MAP[cls]
+        except KeyError:
+            return None
 
 
 def print_items_and_confirm(items: list, item_type: str, print_limit: int = 10,
@@ -22,12 +39,15 @@ def print_items_and_confirm(items: list, item_type: str, print_limit: int = 10,
         if i >= print_limit:
             break
         item = items[i]
-        if short and hasattr(item, 'short_str'):
-            print(f"  {item.short_str()}")
-            continue
-        elif pretty and hasattr(item, 'pretty_str'):
-            print(f"{items[i].pretty_str()}{os.linesep}")
-            continue
+        if short or pretty:
+            formatter = Formatters.for_type(type(item))
+            if short and formatter is not None:
+                print(f"  {formatter.short(item)}")
+                continue
+            elif pretty and formatter is not None:
+                print(f"{formatter.pretty(item)}{os.linesep}")
+                continue
+
         print(f"  {item}")
 
     if len(items) > print_limit:
@@ -36,7 +56,3 @@ def print_items_and_confirm(items: list, item_type: str, print_limit: int = 10,
     print()
 
     return input('Would you like to insert these into the database [Y/n]? ')
-
-
-def string_to_bool(bool_str: str) -> bool:
-    return bool(distutils.util.strtobool(bool_str))
