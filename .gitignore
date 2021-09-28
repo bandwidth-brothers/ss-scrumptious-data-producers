@@ -1,4 +1,3 @@
-.env
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -16,7 +15,6 @@ downloads/
 eggs/
 .eggs/
 lib/
-!db/h2/lib/
 lib64/
 parts/
 sdist/

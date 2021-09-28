@@ -3,8 +3,6 @@ import os
 import sys
 import csv
 import uuid
-import json
-import bcrypt
 import string
 import random
 import pymysql
@@ -14,62 +12,42 @@ import logging as log
 from argparse import RawTextHelpFormatter
 from app.db.config import Config
 from app.db.database import Database
-from app.producers.helpers import print_items_and_confirm
 
 
 class UsersArgParser:
-    def __init__(self, args):
+    def __init__(self):
         self.parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter,
                                               description="""Generate user data in MySQL database.
-A CSV, JSON, or XML file with a dataset may be provided as an argument using the
---csv, --json, or --xml option, respectively. When either of these arguments are
-provided, others will be ignored.
+A comma separated values (CSV) file with a dataset may be provided
+as an argument using the --csv option. When this argument is provided,
+others will be ignored.
 
 examples:
 
     python -m app.producers.users --csv <path-to-csv-file>
-    python -m app.producers.users --json <path-to-json-file>
-    python -m app.producers.users --xml <path-to-xml-file>
     python -m app.producers.users --custs 20 --admins 2 --emps 5 --drivers 5
     python -m app.producers.users --admins 2""")
-        self.parser.add_argument('--csv', type=str, help="""a csv file with user data.
-File should be in the format following (no header). All fields required.:
-user_id,user_role,password,email,confirmed,acct_expired,acct_locked,cred_expired""")
+        self.parser.add_argument('-f', '--csv', type=str, help="""a csv file with user data.
+File should be in the format (no header):
+userId,userRole,username,password,email""")
         self.parser.add_argument('--custs', type=int, help='number of customers to generate')
         self.parser.add_argument('--admins', type=int, help='umber of admins to generate')
         self.parser.add_argument('--emps', type=int, help='number of employees to generate')
         self.parser.add_argument('--drivers', type=int, help='number of drivers to generate')
-        self.args = self.parser.parse_args(args)
+        self.args = self.parser.parse_args()
 
 
 class User:
-    def __init__(self, user_id: uuid.UUID, user_role: str, password: str, email: str, enabled: bool = True,
-                 confirmed: bool = True, account_non_expired: bool = True, account_non_locked: bool = True,
-                 credentials_non_expired: bool = True):
+    def __init__(self, user_id, user_role, username, password, email):
         self.user_id = user_id
+        self.username = username
         self.password = password
         self.email = email
         self.user_role = user_role
-        self.enabled = enabled
-        self.confirmed = confirmed
-        self.account_non_expired = account_non_expired
-        self.account_non_locked = account_non_locked
-        self.credentials_non_expired = credentials_non_expired
 
     def __str__(self):
-        def _trunc(val: str, length: int):
-            return val[0: length] + "..."
-
-        return f"id: {_trunc(str(self.user_id), 12)}, role: {self.user_role}, passwd: {_trunc(self.password, 16)}, " \
-               f"email: {self.email}, enabled: {self.enabled}, confirmed: {self.confirmed}, " \
-               f"acct_expired: {self.account_non_expired}, acct_locked: {self.account_non_locked}, " \
-               f"cred_expired: {self.credentials_non_expired}"
-
-    class Role:
-        ADMIN = 'ADMIN'
-        EMPLOYEE = 'EMPLOYEE'
-        CUSTOMER = 'CUSTOMER'
-        DRIVER = 'DRIVER'
+        return f"id: {self.user_id}, role: {self.user_role}, username: {self.username},"\
+               f"password: {self.password}, email: {self.email}"
 
 
 class UserGenerator:
@@ -86,12 +64,19 @@ class UserGenerator:
         numbers = string.digits
         symbols = string.punctuation
         all_chars = lower + upper + numbers + symbols
-        password = "".join(random.sample(all_chars, password_len))
+        return "".join(random.sample(all_chars, password_len))
 
-        def _salt_and_hash(_password: str):
-            return bcrypt.hashpw(_password.encode('utf-8'), bcrypt.gensalt(rounds=10, prefix=b"2a"))
+    @classmethod
+    def generate_username(cls, min_len=8, max_len=32) -> str:
+        """
+        Generate a random username.
 
-        return _salt_and_hash(password).decode('utf-8')
+        :param min_len: the minimum length of the username
+        :param max_len: the maximum length of the username
+        :return: the generated username
+        """
+        length = random.randint(min_len, max_len)
+        return "".join(random.sample(string.ascii_lowercase, length))
 
     @classmethod
     def generate_email(cls, min_len=4, max_len=20) -> str:
@@ -119,10 +104,11 @@ class UserGenerator:
         :param role: the role of the user
         :return: the generated User
         """
+        username = cls.generate_username(min_len=8, max_len=12)
         password = cls.generate_password(password_len=12)
         email = cls.generate_email(min_len=4, max_len=12)
         user_id = uuid.uuid4()
-        user = User(user_id=user_id, user_role=role, password=password, email=email)
+        user = User(user_id, role, username, password, email)
         return user
 
 
@@ -139,16 +125,14 @@ class UsersProducer:
         try:
             self.db.open_connection()
             with self.db.conn.cursor() as cursor:
-                sql = "INSERT INTO user (id, user_role, password, email, enabled, confirmed, account_non_expired, " \
-                      "account_non_locked, credentials_non_expired) " \
-                      "VALUES (UNHEX(?), ?, ?, ?, ?, ?, ?, ?, ?)"
-                cursor.execute(sql, (user.user_id.hex, user.user_role, user.password, user.email, user.enabled,
-                                     user.confirmed, user.account_non_expired, user.account_non_locked,
-                                     user.credentials_non_expired))
+                sql = "INSERT INTO user (userId, username, password, email, userRole) " \
+                      "VALUES (%s, %s, %s, %s, %s)"
+                cursor.execute(sql, (user.user_id.bytes, user.username, user.password, user.email, user.user_role))
+            self.db.conn.commit()
         except pymysql.MySQLError as ex:
             print(f"Problem occurred saving user: {user}")
             log.error(ex)
-            return
+            sys.exit(1)
         finally:
             if self.db.conn:
                 self.db.conn.close()
@@ -166,15 +150,26 @@ class UsersProducer:
         """
         users = []
         for _ in range(num_custs):
-            users.append(UserGenerator.generate_user(role=User.Role.CUSTOMER))
+            users.append(UserGenerator.generate_user(role='CUSTOMER'))
         for _ in range(num_admins):
-            users.append(UserGenerator.generate_user(role=User.Role.ADMIN))
+            users.append(UserGenerator.generate_user(role='ADMIN'))
         for _ in range(num_emps):
-            users.append(UserGenerator.generate_user(role=User.Role.EMPLOYEE))
+            users.append(UserGenerator.generate_user(role='EMPLOYEE'))
         for _ in range(num_drivers):
-            users.append(UserGenerator.generate_user(role=User.Role.DRIVER))
+            users.append(UserGenerator.generate_user(role='DRIVER'))
 
-        answer = print_items_and_confirm(items=users, item_type='users')
+        print('The following users will be created:', end=os.linesep * 2)
+        print_limit = 10
+        for i in range(len(users)):
+            if i >= print_limit:
+                break
+            print(f"  {users[i]}")
+        if len(users) > print_limit:
+            remaining = len(users) - print_limit
+            print(f"  {remaining} more...")
+        print()
+
+        answer = input('Would you like to insert these into the database [Y/n]? ')
         if answer.strip().lower() == 'n':
             print('No records will be inserted.')
             sys.exit(0)
@@ -185,49 +180,33 @@ class UsersProducer:
 
     def produce_from_csv(self, csv_path: str):
         """
-        Create users from a csv file. The csv file should be in the format (no header):
-        user_id,user_role,password,email,confirmed,acct_expired,acct_locked,cred_expired
-        All fields must be present.
+        Create users from a csv file. The csv file should be in the format (no header)
+        userId,userRole,username,password,email
 
         :param csv_path: the path to the csv file
         """
-        users = []
         with open(csv_path) as file:
             csv_reader = csv.reader(file, delimiter=',')
             for row in csv_reader:
                 user_id = row[0]
                 user_role = row[1]
-                password = row[2]
-                email = row[3]
-                enabled = bool(row[4])
-                confirmed = bool(row[5])
-                acct_expired = bool(row[6])
-                acct_locked = bool(row[7])
-                cred_expired = bool(row[8])
-                users.append(User(user_id=uuid.UUID(user_id), user_role=user_role, password=password, email=email,
-                                  enabled=enabled, confirmed=confirmed, account_non_expired=acct_expired,
-                                  account_non_locked=acct_locked, credentials_non_expired=cred_expired))
-
-        answer = print_items_and_confirm(items=users, item_type='users')
-        if answer.strip().lower() == 'n':
-            print('No records will be inserted.')
-            sys.exit(0)
-        else:
-            for user in users:
+                username = row[2]
+                password = row[3]
+                email = row[4]
+                user = User(user_id, user_role, username, password, email)
                 self.save_user(user)
-            print(f"{len(users)} users created successfully.")
 
 
-def main(arguments):
+if __name__ == '__main__':
     producer = UsersProducer(Database(Config()))
-    parser = UsersArgParser(arguments)
+    parser = UsersArgParser()
     args = parser.args
 
     csv_file = args.csv
     if csv_file:
         if not os.path.isfile(csv_file):
             print(f"{csv_file} does not exist.")
-            return
+            sys.exit(1)
         producer.produce_from_csv(csv_file)
     else:
         custs = args.custs or 0
@@ -235,7 +214,3 @@ def main(arguments):
         emps = args.emps or 0
         drivers = args.drivers or 0
         producer.produce_random(num_custs=custs, num_admins=admins, num_emps=emps, num_drivers=drivers)
-
-
-if __name__ == '__main__':
-    main(sys.argv[1:])
