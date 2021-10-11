@@ -1,8 +1,10 @@
+import json
 import random
 
 from jaydebeapi import Error
 
 from app.db.database import Database
+from app.stream import StreamBuilder
 
 
 class Restaurant:
@@ -31,7 +33,7 @@ class Restaurant:
     def create_random(self, producer):
         self.address_id = producer.create_random_address()
         self.owner_id = random.choice(producer.restaurant_owners)[0]
-        self.name = random.choice(producer.names)
+        self.name = random.choice(producer.names)[:-1]
         self.rating = random.random() * 5
         self.price_category = random.choice((1, 2, 3))
         self.phone = self.create_phone()
@@ -41,6 +43,33 @@ class Restaurant:
         phone = "xxx-xxx-xxxx"
         output = [x if x != "x" else str(random.randint(1, 9)) for x in phone]
         return "".join(output)
+
+    def from_stream_data(self, data):
+        print(data)
+        self.owner_id = data["owner_id"]
+        self.address_id = data["address_id"]
+        self.name = data["name"]
+        self.rating = data["rating"]
+        self.price_category = data["price_category"]
+        self.phone = data["phone"]
+        self.is_active = data["is_active"]
+        self.picture = data["picture"]
+
+    def stream(self):
+        data = {
+            "type": "restaurant",
+            "address_id": int(str(self.address_id)),
+            "owner_id": self.owner_id,
+            "name": self.name,
+            "rating": self.rating,
+            "price_category": self.price_category,
+            "phone": self.phone,
+            "is_active": self.is_active,
+            "picture": self.picture,
+        }
+        stream_builder = StreamBuilder("data-producers")
+        stream_builder.get_stream().put_record(StreamName=stream_builder.stream_name, Data=json.dumps(data),
+                                               PartitionKey=stream_builder.stream_name)
 
     def save(self, database: Database):
         try:

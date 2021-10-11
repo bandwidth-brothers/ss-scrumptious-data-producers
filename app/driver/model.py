@@ -1,9 +1,11 @@
+import json
 import random
 from datetime import date
 
 from jaydebeapi import Error
 
 from app.db.database import Database
+from app.stream import StreamBuilder
 
 
 class Driver:
@@ -40,6 +42,35 @@ class Driver:
         self.license_num = str(random.randint(10000, 99999))
         self.rating = random.random() * 5
         self.status = "waiting"
+
+    def from_stream_data(self, data):
+        self.id = data["id"]
+        self.address_id = data["address_id"]
+        self.first_name = data["first_name"]
+        self.last_name = data["last_name"]
+        self.phone = data["phone"]
+        self.dob = data["dob"]
+        self.license_num = data["license_num"]
+        self.rating = data["rating"]
+        self.status = data["status"]
+
+    def stream(self):
+        data = {
+            "type": "driver",
+            "id": self.id,
+            "address_id": int(str(self.address_id)),
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "phone": self.phone,
+            "dob": self.dob,
+            "license_num": self.license_num,
+            "rating": self.rating,
+            "picture": "https://temp.url/",
+            "status": self.status
+        }
+        stream_builder = StreamBuilder("data-producers")
+        stream_builder.get_stream().put_record(StreamName=stream_builder.stream_name, Data=json.dumps(data),
+                                               PartitionKey=stream_builder.stream_name)
 
     def save(self, database: Database):
         try:

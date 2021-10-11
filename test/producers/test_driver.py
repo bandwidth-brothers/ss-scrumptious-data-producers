@@ -4,7 +4,7 @@ import pymysql
 
 from app.db.config import Config
 from app.db.database import Database
-from app.driver.driver import Driver, DriverProducer
+from app.driver.producer import Driver, DriverProducer
 from app.producers.users import UsersProducer, UserGenerator, User
 
 user_database_conn = Database(Config())

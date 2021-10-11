@@ -4,13 +4,31 @@ import xml.etree.ElementTree as ET
 from typing import List
 
 from jaydebeapi import Error
+from pyspark import RDD
+from pyspark.sql import SparkSession
+from pyspark.streaming import StreamingContext
 
 from app.db.config import Config
 from app.db.database import Database
 from app.producers.helpers import print_items_and_confirm
 from app.restaurant.model import Restaurant
+from app.stream import StreamBuilder, set_spark_env
 
 VALID_TYPES = ["csv", "json", "xml"]
+
+
+def handle_rdd(item, rdd: RDD):
+    rdd.foreach(lambda x: handle_stream_data(item, x))
+
+
+def handle_stream_data(item, data):
+    database = Database(Config())
+    database.open_connection()
+
+    new_item = item()
+    new_item.from_stream_data(data)
+    valid = new_item.save(database)
+    print(("Created: " if valid else "Error creating: ") + new_item.__str__())
 
 
 class Ingest:
@@ -21,7 +39,18 @@ class Ingest:
     handle_data - A method to call for each item, should return a list to be used to construct item
     """
 
-    def __init__(self, filepath: str, target_args: List[str], item_type: str, item, handle_data):
+    def __init__(self, ):
+        self.type: str = ""
+        self.path: str = ""
+        self.target_args: List[str] = []
+        self.item = None
+        self.handle_data = None
+        self.item_type: str = ""
+
+        self.database = Database(Config())
+        self.database.open_connection()
+
+    def init_file_parse(self, filepath: str, target_args: List[str], item_type: str, item, handle_data):
         self.type = filepath[filepath.rfind(".") + 1:]
         self.path = filepath
         self.target_args = target_args
@@ -33,8 +62,27 @@ class Ingest:
             valid = ", ".join(VALID_TYPES)
             print(f"\"{self.type}\" is not a valid file type. Please use one of the following: {valid}")
             exit()
-        self.database = Database(Config())
-        self.database.open_connection()
+
+    def init_stream(self, item):
+        self.item = item
+
+    def from_stream(self, obj_type: str):
+        set_spark_env()
+        print("Starting spark stream")
+        spark = SparkSession \
+            .builder \
+            .appName("ingestStreaming") \
+            .getOrCreate()
+
+        ssc = StreamingContext(spark.sparkContext, 1)
+
+        stream = StreamBuilder("data-producers").get_spark_stream(ssc)
+        stream \
+            .map(lambda x: json.loads(x)) \
+            .filter(lambda x: x["type"] == obj_type) \
+            .foreachRDD(lambda data: handle_rdd(self.item, data))
+        ssc.start()
+        ssc.awaitTermination()
 
     def parse(self):
         data = []
@@ -106,7 +154,6 @@ class Ingest:
 
     def handle_json(self):
         parsed_data = []
-        print(self.path)
         with open(self.path) as json_file:
             data = json.load(json_file)
             for entry in data:
@@ -150,7 +197,6 @@ class Ingest:
         item_data = []
         for entry in data:
             data_dict = {}
-            # print(key.tag, key.attrib, key.text)
             for key in entry:
                 data_dict[key.tag] = key.text
 
@@ -193,8 +239,11 @@ def handle_data(ingest: Ingest, data: dict):
 def main():
     args = ["street", "city", "state", "zip", "owner_id", "name", "rating", "price_category",
             "phone", "is_active", "picture"]
-    ingest = Ingest("./app/data/restaurants-ingest-test.xml", args, "restaurants", Restaurant, handle_data)
-    ingest.parse()
+    ingest = Ingest()
+    ingest.init_stream(Restaurant)
+    ingest.from_stream("restaurant")
+    # ingest.init_file_parse("./app/data/restaurants-ingest-test.xml", args, "restaurants", Restaurant, handle_data)
+    # ingest.parse()
 
 
 if __name__ == '__main__':

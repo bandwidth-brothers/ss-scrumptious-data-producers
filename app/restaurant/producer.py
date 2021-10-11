@@ -2,6 +2,7 @@ import argparse
 import csv
 import logging as log
 import random
+from time import sleep
 
 from jaydebeapi import Error
 
@@ -15,7 +16,7 @@ class RestaurantArgParser:
     def __init__(self):
         self.parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
                                               description="""Randomly create a given number of restaurants in the 
-MySQL database. Each restaurant will automatically generate their address from a (CSV) file, you may provide the --addrs 
+MySQL database or AWS data stream. Each restaurant will automatically generate their address from a (CSV) file, you may provide the --addrs 
 option to point to the file you wish to use for this. Restaurant names are randomly chosen from a text document. 
 If you wish to use a different file than the default, use the --names argument 
 """)
@@ -24,13 +25,16 @@ File should not have a header, and have the following columns (address,city,stat
         self.parser.add_argument("--names", type=str,
                                  help="Filepath to a txt document with a list of names to draw from")
         self.parser.add_argument("--num", type=int, help="Number of restaurants to create")
+        self.parser.add_argument("--target", type=str, choices=["database", "stream"], default="database",
+                                 help="If the data should be stored directly in the database, or instead streamed")
 
     def get_args(self):
         return self.parser.parse_args()
 
 
 class RestaurantProducer:
-    def __init__(self, database: Database, addr_csv_path=None, rest_names_path=None):
+    def __init__(self, database: Database, addr_csv_path, rest_names_path, target):
+        self.target = target
         self.addr_csv_path = addr_csv_path or "./app/data/addresses.csv"
         self.rest_names_path = rest_names_path or "./app/data/restaurant-names.txt"
         self.database = database
@@ -87,7 +91,38 @@ class RestaurantProducer:
         finally:
             return uid
 
+    def create_in_stream(self, quantity: int):
+        if quantity is None:
+            print("Creating one restaurant per second")
+            while True:
+                restaurant = Restaurant()
+                restaurant.producer = self
+                restaurant.create_random(self)
+                restaurant.stream()
+                print(restaurant)
+                sleep(1)
+        else:
+            created = []
+            for i in range(quantity):
+                restaurant = Restaurant()
+                restaurant.producer = self
+                restaurant.create_random(self)
+                created.append(restaurant)
+
+            answer = print_items_and_confirm(items=created, item_type="restaurants")
+            if answer.strip().lower() == "y":
+                for restaurant in created:
+                    restaurant.stream()
+
+                print(f"Sent {len(created)} restaurants to the data stream!")
+            else:
+                print(f"No items created")
+
     def create_restaurants(self, quantity: int):
+        if self.target == "stream":
+            self.create_in_stream(quantity)
+            return
+
         if quantity is None or quantity < 0:
             restaurant = Restaurant()
             restaurant.create_random(self)
@@ -118,7 +153,7 @@ def main():
     db.open_connection()
 
     args = vars(RestaurantArgParser().get_args())
-    producer = RestaurantProducer(db, args["addrs"], args["names"])
+    producer = RestaurantProducer(db, args["addrs"], args["names"], args["target"])
     producer.create_restaurants(args["num"])
 
 
