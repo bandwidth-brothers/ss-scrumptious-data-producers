@@ -1,11 +1,8 @@
-
-import sys
+import os
 import uuid
 import string
 import random
-import argparse
 
-from app.db.config import Config
 from app.db.database import Database
 from app.producers.users import UserGenerator
 
@@ -32,6 +29,71 @@ def get_last_insert_id(db: Database, table: str):
     return last_id if last_id is not None else 1
 
 
+class OrderDependencies:
+    @staticmethod
+    def create_dependencies(db: Database, num_custs: int, num_rests: int, num_delivs: int):
+        for _ in range(num_custs):
+            CustomerData.create_customers(db, num_custs)
+        print(f"{num_custs} customers created.")
+        for _ in range(num_rests):
+            RestaurantData.create_restaurants(db, num_rests)
+        print(f"{num_rests} restaurants created.")
+        for _ in range(num_delivs):
+            DeliveryData.create_deliveries(db, num_delivs)
+        print(f"{num_delivs} deliveries created.")
+
+    @staticmethod
+    def delete_all(db: Database):
+        db.open_connection()
+        with db.conn.cursor() as curs:
+            sql = """
+            SELECT COUNT(delivery.id), COUNT(`order`.id), COUNT(driver.id), 
+                   COUNT(restaurant.id), COUNT(a1.id), COUNT(a2.id) 
+            FROM `order` JOIN restaurant ON `order`.restaurant_id = restaurant.id
+            JOIN address a1 ON a1.id = restaurant.address_id
+            JOIN delivery ON delivery.id = `order`.delivery_id
+            JOIN driver ON driver.id = delivery.driver_id
+            JOIN address a2 on driver.address_id = a2.id
+            """
+            curs.execute(sql)
+            counts = curs.fetchone()
+        db.conn.close()
+        db.conn = None
+
+        delivs = counts[0]
+        orders = counts[1]
+        drivers = counts[2]
+        rests = counts[3]
+        addrs = counts[4] + counts[5]
+
+        prompt = f"{orders} orders,{os.linesep}" \
+                 f"{rests} restaurants,{os.linesep}" \
+                 f"{drivers} drivers,{os.linesep}" \
+                 f"{delivs} deliveries,{os.linesep}" \
+                 f"{addrs} address will be deleted.{os.linesep}" \
+                 f"Would you like to continue [y/N]? "
+        answer = input(prompt)
+
+        if answer.strip().lower() == 'y':
+            db.open_connection()
+            db.conn.jconn.setAutoCommit(False)
+            with db.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM `order`')
+                cursor.execute('DELETE FROM restaurant')
+                cursor.execute('DELETE FROM owner')
+                cursor.execute('DELETE FROM delivery')
+                cursor.execute('DELETE FROM driver')
+                cursor.execute('DELETE FROM customer')
+                cursor.execute('DELETE FROM address')
+                cursor.execute('DELETE FROM `user`')
+            db.conn.commit()
+            db.conn.close()
+            db.conn = None
+            print('All records deleted.')
+        else:
+            print("No records will be deleted.")
+
+
 class AddressData:
     @staticmethod
     def create_addresses(db: Database, count: int):
@@ -55,21 +117,21 @@ class AddressData:
         db.conn = None
         return GeneratedIds(addr_ids=address_ids)
 
-    @staticmethod
-    def delete_addresses(db: Database, ids: GeneratedIds):
-        db.open_connection()
-        db.conn.jconn.setAutoCommit(False)
-        with db.conn.cursor() as cursor:
-            for address_id in ids.addr_ids:
-                cursor.execute('DELETE FROM address WHERE id = ?', (address_id,))
-        db.conn.commit()
-        db.conn.close()
-        db.conn = None
+    # @staticmethod
+    # def delete_addresses(db: Database, ids: GeneratedIds):
+    #     db.open_connection()
+    #     db.conn.jconn.setAutoCommit(False)
+    #     with db.conn.cursor() as cursor:
+    #         for address_id in ids.addr_ids:
+    #             cursor.execute('DELETE FROM address WHERE id = ?', (address_id,))
+    #     db.conn.commit()
+    #     db.conn.close()
+    #     db.conn = None
 
 
 class RestaurantData:
-    @classmethod
-    def create_restaurants(cls, db: Database, count: int):
+    @staticmethod
+    def create_restaurants(db: Database, count: int):
         address_ids = AddressData.create_addresses(db, count).addr_ids
         owner_ids = UserData.create_users(db, count, 'EMPLOYEE').user_ids
         restaurant_ids = []
@@ -95,21 +157,21 @@ class RestaurantData:
         db.conn = None
         return GeneratedIds(rest_ids=restaurant_ids, addr_ids=address_ids, user_ids=owner_ids)
 
-    @classmethod
-    def delete_restaurants(cls, db: Database, ids: GeneratedIds):
-        db.open_connection()
-        db.conn.jconn.setAutoCommit(False)
-        with db.conn.cursor() as cursor:
-            for rest_id in ids.rest_ids:
-                cursor.execute('DELETE FROM restaurant WHERE id = ?', (rest_id,))
-            for owner_id in ids.user_ids:
-                cursor.execute('DELETE FROM owner WHERE id = UNHEX(?)', (owner_id,))
-        db.conn.commit()
-        db.conn.close()
-        db.conn = None
-
-        AddressData.delete_addresses(db, ids)
-        UserData.delete_users(db, ids)
+    # @staticmethod
+    # def delete_restaurants(db: Database, ids: GeneratedIds):
+    #     db.open_connection()
+    #     db.conn.jconn.setAutoCommit(False)
+    #     with db.conn.cursor() as cursor:
+    #         for rest_id in ids.rest_ids:
+    #             cursor.execute('DELETE FROM restaurant WHERE id = ?', (rest_id,))
+    #         for owner_id in ids.user_ids:
+    #             cursor.execute('DELETE FROM owner WHERE id = UNHEX(?)', (owner_id,))
+    #     db.conn.commit()
+    #     db.conn.close()
+    #     db.conn = None
+    #
+    #     AddressData.delete_addresses(db, ids)
+    #     UserData.delete_users(db, ids)
 
 
 class UserData:
@@ -122,10 +184,10 @@ class UserData:
             for _ in range(count):
                 user_id = uuid.uuid4().hex
                 user = UserGenerator.generate_user(user_role)
-                user.user_id = user_id
+                user.id = user_id
                 cursor.execute('INSERT INTO user (id,user_role,password,email,enabled,confirmed,account_non_expired,'
                                'account_non_locked,credentials_non_expired) VALUES (UNHEX(?), ?, ?, ?, ?, ?, ?, ?, ?)',
-                               (user.user_id, user.user_role, user.password, user.email, user.enabled, user.confirmed,
+                               (user.id, user.user_role, user.password, user.email, user.enabled, user.confirmed,
                                 user.account_non_expired, user.account_non_locked, user.credentials_non_expired))
                 user_ids.append(user_id)
         db.conn.commit()
@@ -133,16 +195,16 @@ class UserData:
         db.conn = None
         return GeneratedIds(user_ids=user_ids)
 
-    @staticmethod
-    def delete_users(db: Database, ids: GeneratedIds):
-        db.open_connection()
-        db.conn.jconn.setAutoCommit(False)
-        with db.conn.cursor() as cursor:
-            for user_id in ids.user_ids:
-                cursor.execute('DELETE FROM user WHERE id = UNHEX(?)', (user_id,))
-        db.conn.commit()
-        db.conn.close()
-        db.conn = None
+    # @staticmethod
+    # def delete_users(db: Database, ids: GeneratedIds):
+    #     db.open_connection()
+    #     db.conn.jconn.setAutoCommit(False)
+    #     with db.conn.cursor() as cursor:
+    #         for user_id in ids.user_ids:
+    #             cursor.execute('DELETE FROM user WHERE id = UNHEX(?)', (user_id,))
+    #     db.conn.commit()
+    #     db.conn.close()
+    #     db.conn = None
 
 
 def _get_random_phone_number():
@@ -170,18 +232,18 @@ class CustomerData:
         db.conn = None
         return GeneratedIds(user_ids=cust_ids)
 
-    @staticmethod
-    def delete_customers(db: Database, ids: GeneratedIds):
-        db.open_connection()
-        db.conn.jconn.setAutoCommit(False)
-        with db.conn.cursor() as cursor:
-            for customer_id in ids.user_ids:
-                cursor.execute('DELETE FROM customer WHERE id = UNHEX(?)', (customer_id,))
-        db.conn.commit()
-        db.conn.close()
-        db.conn = None
-
-        UserData.delete_users(db, ids)
+    # @staticmethod
+    # def delete_customers(db: Database, ids: GeneratedIds):
+    #     db.open_connection()
+    #     db.conn.jconn.setAutoCommit(False)
+    #     with db.conn.cursor() as cursor:
+    #         for customer_id in ids.user_ids:
+    #             cursor.execute('DELETE FROM customer WHERE id = UNHEX(?)', (customer_id,))
+    #     db.conn.commit()
+    #     db.conn.close()
+    #     db.conn = None
+    #
+    #     UserData.delete_users(db, ids)
 
 
 class DriverData:
@@ -207,18 +269,18 @@ class DriverData:
         db.conn = None
         return GeneratedIds(user_ids=driver_ids, addr_ids=addr_ids)
 
-    @staticmethod
-    def delete_drivers(db: Database, ids: GeneratedIds):
-        db.open_connection()
-        db.conn.jconn.setAutoCommit(False)
-        with db.conn.cursor() as cursor:
-            for driver_id in ids.user_ids:
-                cursor.execute('DELETE FROM driver WHERE id = UNHEX(?)', (driver_id,))
-        db.conn.commit()
-        db.conn.close()
-        db.conn = None
-
-        UserData.delete_users(db, ids)
+    # @staticmethod
+    # def delete_drivers(db: Database, ids: GeneratedIds):
+    #     db.open_connection()
+    #     db.conn.jconn.setAutoCommit(False)
+    #     with db.conn.cursor() as cursor:
+    #         for driver_id in ids.user_ids:
+    #             cursor.execute('DELETE FROM driver WHERE id = UNHEX(?)', (driver_id,))
+    #     db.conn.commit()
+    #     db.conn.close()
+    #     db.conn = None
+    #
+    #     UserData.delete_users(db, ids)
 
 
 class DeliveryData:
@@ -243,70 +305,16 @@ class DeliveryData:
         db.conn = None
         return GeneratedIds(deliv_ids=delivery_ids, user_ids=driver_ids, addr_ids=address_ids)
 
-    @staticmethod
-    def delete_deliveries(db: Database, ids: GeneratedIds):
-        db.open_connection()
-        db.conn.jconn.setAutoCommit(False)
-        with db.conn.cursor() as cursor:
-            for delivery_id in ids.deliv_ids:
-                cursor.execute('DELETE FROM delivery WHERE id = ?', (delivery_id,))
-        db.conn.commit()
-        db.conn.close()
-        db.conn = None
-
-        DriverData.delete_drivers(db, ids)
-        AddressData.delete_addresses(db, ids)
-
-
-def make_test_data(args):
-    parser = argparse.ArgumentParser(description='Create test data')
-    parser.add_argument('--clear', action='store_true', help='clear all records')
-    parser.add_argument('--delete-orders', action='store_true', help='delete orders when --clear is used')
-    parser.add_argument('--all', type=int, help='create n of each type')
-    parser.add_argument('--addresses', type=int, help='create addresses')
-    parser.add_argument('--customers', type=int, help='create customers')
-    parser.add_argument('--drivers', type=int, help='create drivers')
-    parser.add_argument('--deliveries', type=int, help='create deliveries')
-    parser.add_argument('--restaurants', type=int, help='create restaurants')
-
-    args = parser.parse_args(args)
-    db = Database(Config())
-
-    if args.clear:
-        db.open_connection()
-        db.conn.jconn.setAutoCommit(False)
-        with db.conn.cursor() as cursor:
-            if args.delete_orders:
-                cursor.execute('DELETE FROM `order`')
-            cursor.execute('DELETE FROM restaurant')
-            cursor.execute('DELETE FROM owner')
-            cursor.execute('DELETE FROM delivery')
-            cursor.execute('DELETE FROM driver')
-            cursor.execute('DELETE FROM customer')
-            cursor.execute('DELETE FROM address')
-            cursor.execute('DELETE FROM `user`')
-        db.conn.commit()
-        db.conn.close()
-        db.conn = None
-        return
-
-    def create_data(addrs, custs, drivers, delivs, rests):
-        AddressData.create_addresses(db, addrs)
-        CustomerData.create_customers(db, custs)
-        DriverData.create_drivers(db, drivers)
-        DeliveryData.create_deliveries(db, delivs)
-        RestaurantData.create_restaurants(db, rests)
-
-    if args.all:
-        count = args.all
-        create_data(addrs=count, custs=count, drivers=count, delivs=count, rests=count)
-    else:
-        create_data(addrs=args.addresses or 0,
-                    custs=args.customers or 0,
-                    drivers=args.drivers or 0,
-                    delivs=args.deliveries or 0,
-                    rests=args.restaurants or 0)
-
-
-if __name__ == '__main__':
-    make_test_data(sys.argv[1:])
+    # @staticmethod
+    # def delete_deliveries(db: Database, ids: GeneratedIds):
+    #     db.open_connection()
+    #     db.conn.jconn.setAutoCommit(False)
+    #     with db.conn.cursor() as cursor:
+    #         for delivery_id in ids.deliv_ids:
+    #             cursor.execute('DELETE FROM delivery WHERE id = ?', (delivery_id,))
+    #     db.conn.commit()
+    #     db.conn.close()
+    #     db.conn = None
+    #
+    #     DriverData.delete_drivers(db, ids)
+    #     AddressData.delete_addresses(db, ids)
