@@ -1,0 +1,29 @@
+[
+  {
+    "driverId": "D3A6E60BFECF4C4393F9EEFBC6E8D48C",
+    "type": "directions",
+    "destinationId": 60,
+    "location": {
+      "lat": 38.7767523,
+      "lng": -77.12479549999999
+    }
+  },
+  {
+    "driverId": "81BB3F393A184BB79FA12DA0A3736406",
+    "type": "directions",
+    "destinationId": 61,
+    "location": {
+      "lat": 38.7722889,
+      "lng": -77.131351
+    }
+  },
+  {
+    "driverId": "81BB3F393A184BB79FA12DA0A3736406",
+    "type": "directions",
+    "destinationId": 60,
+    "location": {
+      "lat": 38.7722889,
+      "lng": -77.131351
+    }
+  }
+]

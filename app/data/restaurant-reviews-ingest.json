@@ -1,0 +1,17 @@
+[
+  {
+    "restaurant_id": 1,
+    "reviews": [
+      {
+        "user_id": 1,
+        "rating": 5,
+        "description": "Was great, will come again"
+      },
+      {
+        "user_id": 2,
+        "rating": 2,
+        "description": "Terrible food, poor service"
+      }
+    ]
+  }
+]
