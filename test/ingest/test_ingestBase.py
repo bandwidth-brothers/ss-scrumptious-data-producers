@@ -8,8 +8,11 @@ rest_args = ["street", "city", "state", "zip", "owner_id", "name", "rating", "pr
 csv_row_data = ['Ap #462-9254 Enim Road', 'Phoenix', 'AZ', '85084', '1', 'My Restur', 5.0, 1, '407-455-4527', 1,
                 'https://logo.com']
 
-json_xml_row_data = ['Ap #462-9254 Enim Road', 'Phoenix', 'AZ', '85084', 1, 'My Restur', 5.0, 1, '407-455-4527', 1,
-                     'https://logo.com']
+json_row_data = ['Ap #462-9254 Enim Road', 'Phoenix', 'AZ', '85084', 1, 'My Restur', 5.0, 1, '407-455-4527', 1,
+                 'https://logo.com']
+
+xml_row_data = ['Ap #462-9254 Enim Road', 'Phoenix', 'AZ', '85084', '1', 'My Restur', 3.6, 1, '407-455-4527', 1,
+                'https://logo.com']
 
 
 def handle_data(ingest: Ingest, data: dict):
@@ -58,21 +61,21 @@ def test_handle_json():
     ingest = Ingest("./app/data/restaurants-ingest-test.json", rest_args, None, None, handle_data)
     parsed = ingest.handle_json()[0]
 
-    for i in range(len(json_xml_row_data)):
-        assert json_xml_row_data[i] == parsed[i]
+    for i in range(len(json_row_data)):
+        assert json_row_data[i] == parsed[i]
 
 
 def test_handle_csv():
     ingest = Ingest("./app/data/restaurants-ingest-test.csv", rest_args, None, None, handle_data)
     parsed = ingest.handle_csv()[0]
 
-    for i in range(len(json_xml_row_data)):
-        assert json_xml_row_data[i] == parsed[i]
+    for i in range(len(csv_row_data)):
+        assert csv_row_data[i] == parsed[i]
 
 
 def test_handle_xml():
     ingest = Ingest("./app/data/restaurants-ingest-test.xml", rest_args, None, None, handle_data)
     parsed = ingest.handle_xml()[0]
 
-    for i in range(len(json_xml_row_data)):
-        assert json_xml_row_data[i] == parsed[i]
+    for i in range(len(xml_row_data)):
+        assert xml_row_data[i] == parsed[i]

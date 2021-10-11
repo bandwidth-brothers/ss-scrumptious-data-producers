@@ -5,11 +5,7 @@ from jaydebeapi import Error
 
 from app.db.config import Config
 from app.db.database import Database
-
-
-def get_api_key():
-    with open("./maps-api-key.txt") as file:
-        return file.readline()
+from app.stream import StreamBuilder
 
 
 def parse_directions(directions):
@@ -28,22 +24,22 @@ def parse_directions(directions):
     return steps
 
 
+def get_api_key():
+    with open("./maps-api-key.txt") as file:
+        return file.readline()
+
+
 class DriverDirectionHandler:
-    def __init__(self, api_key: str, testing_data_path: str):
+    def __init__(self, api_key):
+        self.stream_builder = StreamBuilder("driver-direction-output")
+        self.kinesis = self.stream_builder.get_stream()
+
         self.gmaps = googlemaps.Client(key=api_key)
 
         self.database = Database(Config())
         self.database.open_connection()
 
         self.sent_packets = []
-
-        with open(testing_data_path) as json_file:
-            data = json.load(json_file)
-            for message in data:
-                self.handle_message(message)
-
-        with open('./app/data/driverStreamOut.json', 'w') as f:
-            json.dump(self.sent_packets, f)
 
     def handle_message(self, data):
         if data["type"] == "directions":
@@ -78,14 +74,6 @@ class DriverDirectionHandler:
         self.emit(reply)
 
     def emit(self, message):
+        self.kinesis.put_record(StreamName=self.stream_builder.stream_name, Data=json.dumps(message),
+                                PartitionKey=self.stream_builder.stream_name)
         print(message)
-        self.sent_packets.append(message)
-
-
-def main():
-    api_key = get_api_key()
-    direction_handler = DriverDirectionHandler(api_key, "./app/data/driverUpdates.json")
-
-
-if __name__ == "__main__":
-    main()

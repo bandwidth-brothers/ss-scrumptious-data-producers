@@ -25,10 +25,14 @@ def handle_data(ingest: Ingest, data: dict):
 def main():
     args = ["user_id", "address_id", "first_name", "last_name", "phone", "dob", "license_num", "rating", "status"]
     user_args = vars(DriverIngestArgParser().get_args())
-    path = user_args["path"] or "./app/data/driver-ingest-test.csv"
-
-    ingest = Ingest(path, args, "drivers", Driver, handle_data)
-    ingest.parse()
+    if "path" in user_args and user_args["path"] is not None:
+        ingest = Ingest()
+        ingest.init_file_parse(user_args["path"], args, "drivers", Driver, handle_data)
+        ingest.parse()
+    else:
+        ingest = Ingest()
+        ingest.init_stream(Driver)
+        ingest.from_stream("driver")
 
 
 if __name__ == '__main__':

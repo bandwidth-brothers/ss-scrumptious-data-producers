@@ -1,5 +1,6 @@
 import argparse
 import logging as log
+from time import sleep
 
 from jaydebeapi import Error
 
@@ -21,13 +22,16 @@ First and last names are pulled from a file, which can be specified using comman
         self.parser.add_argument("--last-names", type=str,
                                  help="Filepath to a txt document with a list of last names to draw from")
         self.parser.add_argument("--num", type=int, help="Number of drivers to create")
+        self.parser.add_argument("--target", type=str, choices=["database", "stream"], default="database",
+                                 help="If the data should be stored directly in the database, or instead streamed")
 
     def get_args(self):
         return self.parser.parse_args()
 
 
 class DriverProducer:
-    def __init__(self, database: Database, first_name_path=None, last_name_path=None):
+    def __init__(self, database: Database, first_name_path=None, last_name_path=None, target="database"):
+        self.target = target
         self.first_name_path = first_name_path or "./app/data/first_names.txt"
         self.last_name_path = last_name_path or "./app/data/last_names.txt"
         self.database = database
@@ -86,7 +90,38 @@ class DriverProducer:
             log.error("A database error occurred when trying to fetch users")
             print(e)
 
+    def create_in_stream(self, quantity: int):
+        if quantity is None:
+            print("Creating one driver per second")
+            while True:
+                driver = Driver()
+                driver.producer = self
+                driver.create_random(self)
+                driver.stream()
+                print(driver)
+                sleep(1)
+        else:
+            created = []
+            for i in range(quantity):
+                driver = Driver()
+                driver.producer = self
+                driver.create_random(self)
+                created.append(driver)
+
+            answer = print_items_and_confirm(items=created, item_type="drivers")
+            if answer.strip().lower() == "y":
+                for driver in created:
+                    driver.stream()
+
+                print(f"Sent {len(created)} drivers to the data stream!")
+            else:
+                print(f"No items created")
+
     def create_drivers(self, quantity: int):
+        if self.target == "stream":
+            self.create_in_stream(quantity)
+            return
+
         if quantity is None or quantity < 0:
             driver = Driver()
             driver.create_random(self)
@@ -116,7 +151,7 @@ def main():
     db.open_connection()
 
     args = vars(DriverArgParser().get_args())
-    producer = DriverProducer(db, args["first_names"], args["last_names"])
+    producer = DriverProducer(db, args["first_names"], args["last_names"], args["target"])
     producer.create_drivers(args["num"])
 
 
