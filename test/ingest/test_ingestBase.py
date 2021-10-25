@@ -13,6 +13,8 @@ json_row_data = ['Ap #462-9254 Enim Road', 'Phoenix', 'AZ', '85084', 1, 'My Rest
 
 xml_row_data = ['Ap #462-9254 Enim Road', 'Phoenix', 'AZ', '85084', '1', 'My Restur', 3.6, 1, '407-455-4527', 1,
                 'https://logo.com']
+json_xml_row_data = ['Ap #462-9254 Enim Road', 'Phoenix', 'AZ', '85084', 1, 'My Restur', 5.0, 1, '407-455-4527', 1,
+                     'https://logo.com']
 
 
 def handle_data(ingest: Ingest, data: dict):

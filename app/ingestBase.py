@@ -154,7 +154,6 @@ class Ingest:
 
     def handle_json(self):
         parsed_data = []
-
         with open(self.path) as json_file:
             data = json.load(json_file)
             for entry in data:
