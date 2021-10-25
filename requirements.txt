@@ -20,3 +20,6 @@ googlemaps==4.5.3
 py4j==0.10.9
 pyspark==3.1.2
 boto3==1.18.55
+geopy==2.2.0
+requests==2.26.0
+matplotlib==3.4.3

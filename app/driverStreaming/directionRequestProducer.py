@@ -16,10 +16,10 @@ def create_test_data(path: str):
 
 
 def run():
-    while True:
-        create_test_data("app/data/driverUpdates.json")
-        print("Added data to stream!")
-        sleep(1)
+    # while True:
+    create_test_data("app/data/driverUpdates.json")
+    print("Added data to stream!")
+    sleep(1)
 
 
 if __name__ == "__main__":

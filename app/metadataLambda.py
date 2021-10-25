@@ -7,7 +7,7 @@ from decimal import Decimal
 
 import boto3
 
-STORE_EVENTS = ["arrived"]
+STORE_EVENTS = ["arrived", "start", "approach"]
 
 
 def lambda_handler(event, context):
