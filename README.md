@@ -182,7 +182,7 @@ individual tests, instead of the entire test suite, you will need to set these
  pytest test/producers/users_test.py::test_user_arg_parser
 ```
 
-Test files should end with `_test.py`. Tests will be run using an H2 database.
+Test files should end with `_test.py`. Tests will be run using an H2 database
 
 ## Run in Production
 
